@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev
+
+resources:
+  - ../../base
+
+# Dev environment common labels
+commonLabels:
+  environment: dev
+
+# Generate resources from Helm chart with dev values
+helmCharts:
+  - name: my-app
+    releaseName: my-app
+    namespace: dev
+    valuesFile: values-dev.yaml
+    additionalValuesFiles:
+      - ../../base/values.yaml
+
+# Dev-specific patches
+patches:
+  # Single replica for dev
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: my-app
+

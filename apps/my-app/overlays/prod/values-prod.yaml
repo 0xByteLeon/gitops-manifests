@@ -1,0 +1,71 @@
+# Production environment values
+replicaCount: 3
+
+image:
+  repository: your-registry.example.com/my-app
+  tag: "v1.0.0"  # Always use explicit version tags in production
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+config:
+  logLevel: warn
+  logFormat: json
+
+# Enable autoscaling in production
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+# Production ingress with TLS - using traefik
+# Change to "nginx" if using nginx-ingress-controller
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: my-app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: my-app-prod-tls
+      hosts:
+        - my-app.example.com
+
+# Pod annotations for production
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+# OpenTelemetry for production (cross-namespace)
+otel:
+  enabled: true
+  endpoint: "http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317"
+  serviceName: "my-app"
+  samplingRatio: "0.1"  # Sample 10% of traces in production
+
+# Node affinity for production workloads
+nodeSelector:
+  workload-type: application
+
+# Tolerations for dedicated nodes
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "application"
+    effect: "NoSchedule"
+

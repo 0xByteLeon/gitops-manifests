@@ -1,0 +1,74 @@
+# Production environment - high availability
+replicaCount: 3
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+# Enable autoscaling in production
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Affinity for HA
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - opentelemetry-collector
+          topologyKey: kubernetes.io/hostname
+
+config:
+  processors:
+    resource:
+      attributes:
+        - key: cluster
+          value: "prod-cluster"
+          action: upsert
+        - key: environment
+          value: "prod"
+          action: upsert
+    
+    # Aggressive sampling for production
+    probabilistic_sampler:
+      sampling_percentage: 10
+    
+    # Stricter memory limits
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 800
+      spike_limit_mib: 200
+  
+  # Remove debug exporter in production
+  exporters:
+    debug:
+      verbosity: basic
+  
+  service:
+    pipelines:
+      traces:
+        processors:
+          - memory_limiter
+          - probabilistic_sampler
+          - batch
+          - resource
+        exporters:
+          - otlp/tempo
+

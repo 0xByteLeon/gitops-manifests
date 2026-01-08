@@ -1,0 +1,122 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: root-app
+    app.kubernetes.io/part-of: gitops
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+    targetRevision: HEAD
+    path: argocd/apps
+    directory:
+      recurse: false
+      include: "*.yaml"
+      exclude: "root-app.yaml"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+# ArgoCD Project for platform infrastructure
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: gitops
+spec:
+  description: Platform infrastructure components (LGTM observability stack)
+  
+  sourceRepos:
+    - git@github.com:0xByteLeon/gitops-manifests.git
+    - https://grafana.github.io/helm-charts
+    - https://prometheus-community.github.io/helm-charts
+    - https://open-telemetry.github.io/opentelemetry-helm-charts
+  
+  # Each platform component has its own namespace
+  destinations:
+    - namespace: prometheus
+      server: "*"
+    - namespace: grafana
+      server: "*"
+    - namespace: loki
+      server: "*"
+    - namespace: tempo
+      server: "*"
+    - namespace: opentelemetry
+      server: "*"
+    - namespace: otel-collector
+      server: "*"
+  
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+  
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+# ArgoCD Project for business applications
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: gitops
+spec:
+  description: Business applications
+  
+  sourceRepos:
+    - git@github.com:0xByteLeon/gitops-manifests.git
+  
+  destinations:
+    - namespace: dev
+      server: "*"
+    - namespace: qa
+      server: "*"
+    - namespace: prod
+      server: "*"
+  
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+

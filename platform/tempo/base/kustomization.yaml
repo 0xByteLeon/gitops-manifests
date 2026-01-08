@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: tempo
+
+resources:
+  - namespace.yaml
+
+# Tempo Helm Chart
+helmCharts:
+  - name: tempo
+    repo: https://grafana.github.io/helm-charts
+    version: 1.24.1
+    releaseName: tempo
+    namespace: tempo
+    valuesFile: values.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: observability
+  app.kubernetes.io/component: tracing
+

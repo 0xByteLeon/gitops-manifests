@@ -1,0 +1,21 @@
+# GitOps Repository Code Owners
+# These owners will be requested for review when someone opens a pull request
+
+# Default owners for everything
+* @platform-team
+
+# ArgoCD configuration requires platform team review
+/argocd/ @platform-team @sre-team
+
+# Production overlays require additional approval
+**/overlays/prod/ @platform-team @sre-team @security-team
+
+# Platform components (LGTM stack)
+/platform/ @platform-team @sre-team
+
+# Business applications - each team owns their app
+/apps/my-app/ @app-team @platform-team
+
+# GitHub Actions workflows
+/.github/ @platform-team @devops-team
+

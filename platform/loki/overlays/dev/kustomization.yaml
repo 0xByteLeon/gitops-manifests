@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: loki
+
+resources:
+  - ../../base
+
+commonLabels:
+  environment: dev
+
+helmCharts:
+  - name: loki
+    repo: https://grafana.github.io/helm-charts
+    version: 6.49.0
+    releaseName: loki
+    namespace: loki
+    valuesFile: values-dev.yaml
+    additionalValuesFiles:
+      - ../../base/values.yaml
+

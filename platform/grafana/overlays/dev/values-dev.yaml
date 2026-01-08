@@ -1,0 +1,41 @@
+# Dev environment Grafana values
+replicas: 1
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+# Smaller persistence for dev
+persistence:
+  enabled: true
+  size: 5Gi
+
+# Dev admin password (change in production)
+adminPassword: admin123
+
+# Enable ingress for dev - using traefik
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  hosts:
+    - grafana.dev.local
+  path: /
+
+grafana.ini:
+  server:
+    root_url: "http://grafana.dev.local"
+    serve_from_sub_path: false
+  
+  log:
+    level: debug
+  
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer
+

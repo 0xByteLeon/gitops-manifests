@@ -1,0 +1,53 @@
+# QA environment values
+replicaCount: 2
+
+image:
+  repository: your-registry.example.com/my-app
+  tag: "qa-latest"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+config:
+  logLevel: info
+  logFormat: json
+
+# Enable autoscaling in QA for testing
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# QA ingress - using traefik (default for k3s)
+# Change to "nginx" if using nginx-ingress-controller
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: my-app.qa.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: my-app-qa-tls
+      hosts:
+        - my-app.qa.example.com
+
+# OpenTelemetry for QA (cross-namespace)
+otel:
+  enabled: true
+  endpoint: "http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317"
+  serviceName: "my-app-qa"
+  samplingRatio: "0.5"  # Sample 50% of traces in QA
+

@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prometheus
+
+resources:
+  - namespace.yaml
+
+# Prometheus Stack Helm Chart (includes Prometheus, Alertmanager, Grafana, etc.)
+helmCharts:
+  - name: kube-prometheus-stack
+    repo: https://prometheus-community.github.io/helm-charts
+    version: 80.13.0
+    releaseName: prometheus
+    namespace: prometheus
+    valuesFile: values.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: observability
+  app.kubernetes.io/component: metrics
+

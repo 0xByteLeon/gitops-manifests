@@ -1,0 +1,104 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: qa-apps
+  namespace: argocd
+  labels:
+    environment: qa
+    app.kubernetes.io/part-of: gitops
+spec:
+  generators:
+    # Generate applications for all directories in apps/*/overlays/qa
+    - git:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        revision: HEAD
+        directories:
+          - path: apps/*/overlays/qa
+  
+  template:
+    metadata:
+      name: "{{path[1]}}-qa"
+      namespace: argocd
+      labels:
+        environment: qa
+        app: "{{path[1]}}"
+    spec:
+      project: apps
+      
+      source:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        targetRevision: HEAD
+        path: "{{path}}"
+      
+      destination:
+        # QA cluster - update with actual cluster URL
+        server: https://qa-cluster.example.com
+        namespace: qa
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 1m
+---
+# Platform apps for QA environment
+# Each component deploys to its own namespace (defined in kustomization.yaml)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: qa-platform
+  namespace: argocd
+  labels:
+    environment: qa
+    app.kubernetes.io/part-of: gitops
+spec:
+  generators:
+    - git:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        revision: HEAD
+        directories:
+          - path: platform/*/overlays/qa
+  
+  template:
+    metadata:
+      name: "{{path[1]}}-qa"
+      namespace: argocd
+      labels:
+        environment: qa
+        component: platform
+        app: "{{path[1]}}"
+    spec:
+      project: platform
+      
+      source:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        targetRevision: HEAD
+        path: "{{path}}"
+      
+      destination:
+        server: https://qa-cluster.example.com
+        # Namespace is defined in each component's kustomization.yaml
+        namespace: "{{path[1]}}"
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 1m
+

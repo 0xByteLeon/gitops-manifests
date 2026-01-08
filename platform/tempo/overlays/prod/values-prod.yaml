@@ -1,0 +1,69 @@
+# Production environment Tempo values
+# Consider using distributed mode for production workloads
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+persistence:
+  enabled: true
+  size: 100Gi
+  storageClass: "fast-ssd"
+
+# HA configuration
+replicas: 3
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - tempo
+          topologyKey: kubernetes.io/hostname
+
+tempo:
+  # Metrics generator for service graph and span metrics
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://prometheus-kube-prometheus-prometheus.prometheus.svc:9090/api/v1/write"
+  
+  overrides:
+    defaults:
+      ingestion:
+        rate_limit_bytes: 50000000
+        burst_size_bytes: 100000000
+        max_traces_per_user: 50000
+      search:
+        max_bytes_per_tag_values_query: 10000000
+      read:
+        max_bytes_per_tag_values_query: 10000000
+      metrics_generator:
+        max_active_series: 100000
+        collection_interval: 15s
+  
+  # For production, consider using object storage
+  # storage:
+  #   trace:
+  #     backend: s3
+  #     s3:
+  #       bucket: tempo-traces-prod
+  #       endpoint: s3.amazonaws.com
+  #       region: us-east-1
+
+# Autoscaling for production
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+

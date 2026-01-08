@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+  - ../../base
+  - pdb.yaml
+
+# Production environment common labels
+commonLabels:
+  environment: prod
+
+# Generate resources from Helm chart with prod values
+helmCharts:
+  - name: my-app
+    releaseName: my-app
+    namespace: prod
+    valuesFile: values-prod.yaml
+    additionalValuesFiles:
+      - ../../base/values.yaml
+
+# Production-specific patches
+patches:
+  # Multiple replicas for production
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: my-app
+  
+  # Add pod anti-affinity for HA
+  - path: patches/deployment-ha.yaml
+

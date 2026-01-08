@@ -1,0 +1,112 @@
+# Loki Helm chart values
+# Using single binary mode for simplicity (scalable mode for production)
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  
+  commonConfig:
+    replication_factor: 1
+    path_prefix: /var/loki
+  
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  
+  storage:
+    type: filesystem
+    filesystem:
+      chunks_directory: /var/loki/chunks
+      rules_directory: /var/loki/rules
+  
+  limits_config:
+    retention_period: 168h  # 7 days
+    ingestion_rate_mb: 10
+    ingestion_burst_size_mb: 20
+    max_query_parallelism: 32
+    max_query_series: 500
+    max_streams_per_user: 10000
+    max_line_size: 256kb
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+  
+  query_scheduler:
+    max_outstanding_requests_per_tenant: 2048
+  
+  frontend:
+    max_outstanding_per_tenant: 2048
+  
+  ruler:
+    storage:
+      type: local
+      local:
+        directory: /var/loki/rules
+    rule_path: /tmp/rules
+    alertmanager_url: http://prometheus-kube-prometheus-alertmanager.prometheus.svc:9093
+    ring:
+      kvstore:
+        store: inmemory
+    enable_api: true
+
+singleBinary:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  persistence:
+    enabled: true
+    size: 10Gi
+
+# Gateway configuration
+gateway:
+  enabled: true
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+# Disable components not needed in single binary mode
+read:
+  replicas: 0
+
+write:
+  replicas: 0
+
+backend:
+  replicas: 0
+
+# Monitoring
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  
+  lokiCanary:
+    enabled: false
+
+# Service monitors
+serviceMonitor:
+  enabled: true
+  labels:
+    release: prometheus
+
+# Test disabled
+test:
+  enabled: false
+

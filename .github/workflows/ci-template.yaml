@@ -1,0 +1,238 @@
+# CI/CD Template for Application Repositories
+# Copy this file to your application repository's .github/workflows/ directory
+#
+# This workflow:
+# 1. Builds and tests the application
+# 2. Builds and pushes Docker image
+# 3. Updates the GitOps repository with the new image tag
+#
+# Required secrets:
+# - REGISTRY_USERNAME: Container registry username
+# - REGISTRY_PASSWORD: Container registry password
+# - GITOPS_REPO_TOKEN: GitHub token with write access to GitOps repo
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/*'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  # Container registry
+  REGISTRY: your-registry.example.com
+  IMAGE_NAME: ${{ github.repository }}
+  
+  # GitOps repository
+  GITOPS_REPO: YOUR_ORG/gitops-manifests
+  GITOPS_BRANCH: main
+  
+  # Application name (should match the directory in gitops-manifests/apps/)
+  APP_NAME: my-app
+
+jobs:
+  # Build and Test
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            VERSION="main-$(git rev-parse --short HEAD)"
+          elif [[ "${{ github.ref }}" == refs/heads/develop ]]; then
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          else
+            VERSION="pr-${{ github.event.number }}-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+      
+      # Add your build and test steps here
+      # Example for Node.js:
+      # - name: Setup Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: '20'
+      #     cache: 'npm'
+      # 
+      # - name: Install dependencies
+      #   run: npm ci
+      # 
+      # - name: Run tests
+      #   run: npm test
+      # 
+      # - name: Run linting
+      #   run: npm run lint
+
+  # Build and Push Docker Image
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=,suffix=,format=short
+      
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.build.outputs.version }}
+            COMMIT_SHA=${{ github.sha }}
+
+  # Update GitOps Repository
+  update-gitops:
+    name: Update GitOps
+    runs-on: ubuntu-latest
+    needs: [build, docker]
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_REPO_TOKEN }}
+          ref: ${{ env.GITOPS_BRANCH }}
+      
+      - name: Setup yq
+        uses: mikefarah/yq@master
+      
+      - name: Determine target environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "auto_merge=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            echo "environment=qa" >> $GITHUB_OUTPUT
+            echo "auto_merge=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/develop ]]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "auto_merge=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Update image tag
+        run: |
+          ENV=${{ steps.env.outputs.environment }}
+          VALUES_FILE="apps/${{ env.APP_NAME }}/overlays/${ENV}/values-${ENV}.yaml"
+          
+          if [ -f "$VALUES_FILE" ]; then
+            yq eval -i '.image.tag = "${{ needs.build.outputs.version }}"' "$VALUES_FILE"
+            echo "Updated $VALUES_FILE with tag: ${{ needs.build.outputs.version }}"
+          else
+            echo "Values file not found: $VALUES_FILE"
+            exit 1
+          fi
+      
+      - name: Create Pull Request
+        if: steps.env.outputs.auto_merge == 'false'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITOPS_REPO_TOKEN }}
+          commit-message: "chore(${{ env.APP_NAME }}): update image to ${{ needs.build.outputs.version }}"
+          title: "[${{ steps.env.outputs.environment }}] Update ${{ env.APP_NAME }} to ${{ needs.build.outputs.version }}"
+          body: |
+            ## Summary
+            This PR updates the image tag for `${{ env.APP_NAME }}` in the `${{ steps.env.outputs.environment }}` environment.
+            
+            ### Changes
+            - **Image Tag**: `${{ needs.build.outputs.version }}`
+            - **Image Digest**: `${{ needs.docker.outputs.image_digest }}`
+            - **Source Commit**: ${{ github.sha }}
+            
+            ### Automated by
+            - Workflow: `${{ github.workflow }}`
+            - Run ID: `${{ github.run_id }}`
+          branch: "deploy/${{ env.APP_NAME }}/${{ steps.env.outputs.environment }}/${{ needs.build.outputs.version }}"
+          delete-branch: true
+          labels: |
+            deployment
+            ${{ steps.env.outputs.environment }}
+            automated
+      
+      - name: Commit and push directly
+        if: steps.env.outputs.auto_merge == 'true'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "chore(${{ env.APP_NAME }}): update ${{ steps.env.outputs.environment }} image to ${{ needs.build.outputs.version }}"
+          git push
+
+  # Notify on completion
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [build, docker, update-gitops]
+    if: always()
+    
+    steps:
+      - name: Send notification
+        run: |
+          if [ "${{ needs.update-gitops.result }}" == "success" ]; then
+            echo "Deployment triggered successfully!"
+            # Add Slack/Teams notification here
+          else
+            echo "Pipeline failed or skipped"
+          fi
+

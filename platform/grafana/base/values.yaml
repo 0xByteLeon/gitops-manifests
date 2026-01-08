@@ -1,0 +1,108 @@
+# Grafana Helm chart values
+replicas: 1
+
+image:
+  repository: grafana/grafana
+  tag: "10.2.3"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Persistence
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClassName: ""
+
+# Admin credentials (use external secret in production)
+adminUser: admin
+# adminPassword: set via secret
+
+# Grafana configuration
+grafana.ini:
+  server:
+    root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    serve_from_sub_path: true
+  
+  analytics:
+    check_for_updates: false
+    reporting_enabled: false
+  
+  security:
+    admin_user: admin
+    disable_gravatar: true
+  
+  users:
+    allow_sign_up: false
+    auto_assign_org: true
+    auto_assign_org_role: Viewer
+  
+  auth:
+    disable_login_form: false
+  
+  log:
+    mode: console
+    level: info
+  
+  # Feature toggles
+  feature_toggles:
+    enable: traceToMetrics correlations
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+# Ingress disabled by default (enabled per environment)
+ingress:
+  enabled: false
+
+# Sidecar for dashboard and datasource provisioning
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    folder: /var/lib/grafana/dashboards
+    folderAnnotation: grafana_folder
+    searchNamespace: ALL
+    provider:
+      allowUiUpdates: true
+  
+  datasources:
+    enabled: true
+    label: grafana_datasource
+    labelValue: "1"
+    searchNamespace: ALL
+
+# Plugin installation
+plugins:
+  - grafana-clock-panel
+  - grafana-piechart-panel
+  - grafana-worldmap-panel
+
+# Environment variables
+envFromSecrets: []
+
+# Pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+
+# Security context
+securityContext:
+  runAsUser: 472
+  runAsGroup: 472
+  fsGroup: 472
+
+# Service account
+serviceAccount:
+  create: true
+  name: grafana
+

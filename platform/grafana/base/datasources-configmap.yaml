@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: grafana
+  labels:
+    grafana_datasource: "1"
+    app.kubernetes.io/part-of: observability
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    deleteDatasources:
+      - name: Prometheus
+        orgId: 1
+      - name: Loki
+        orgId: 1
+      - name: Tempo
+        orgId: 1
+    
+    datasources:
+      # Prometheus - Metrics (cross-namespace: prometheus.prometheus.svc)
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        access: proxy
+        url: http://prometheus-kube-prometheus-prometheus.prometheus.svc:9090
+        isDefault: true
+        editable: false
+        jsonData:
+          httpMethod: POST
+          timeInterval: "15s"
+          exemplarTraceIdDestinations:
+            - name: trace_id
+              datasourceUid: tempo
+        
+      # Loki - Logs (cross-namespace: loki.loki.svc)
+      - name: Loki
+        type: loki
+        uid: loki
+        access: proxy
+        url: http://loki-gateway.loki.svc:3100
+        editable: false
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            - datasourceUid: tempo
+              matcherRegex: "trace_id=(\\w+)"
+              name: TraceID
+              url: "$${__value.raw}"
+        
+      # Tempo - Traces (cross-namespace: tempo.tempo.svc)
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        access: proxy
+        url: http://tempo.tempo.svc:3100
+        editable: false
+        jsonData:
+          httpMethod: GET
+          tracesToLogs:
+            datasourceUid: loki
+            tags: ['service.name', 'pod']
+            mappedTags: [{ key: 'service.name', value: 'service_name' }]
+            mapTagNamesEnabled: true
+            spanStartTimeShift: '-1h'
+            spanEndTimeShift: '1h'
+            filterByTraceID: true
+            filterBySpanID: false
+          tracesToMetrics:
+            datasourceUid: prometheus
+            tags: [{ key: 'service.name', value: 'service' }]
+            queries:
+              - name: 'Request Rate'
+                query: 'sum(rate(http_server_request_count{$$__tags}[5m]))'
+              - name: 'Error Rate'
+                query: 'sum(rate(http_server_request_count{$$__tags, http_status_code=~"5.."}[5m]))'
+          serviceMap:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+          lokiSearch:
+            datasourceUid: loki
+

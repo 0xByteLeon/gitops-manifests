@@ -1,0 +1,35 @@
+# QA environment - medium resources
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+config:
+  processors:
+    resource:
+      attributes:
+        - key: cluster
+          value: "qa-cluster"
+          action: upsert
+        - key: environment
+          value: "qa"
+          action: upsert
+    
+    # Sampling processor for QA
+    probabilistic_sampler:
+      sampling_percentage: 50
+  
+  service:
+    pipelines:
+      traces:
+        processors:
+          - memory_limiter
+          - probabilistic_sampler
+          - batch
+          - resource
+

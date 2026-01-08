@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: opentelemetry
+
+resources:
+  - namespace.yaml
+
+# OpenTelemetry Collector Helm Chart
+helmCharts:
+  - name: opentelemetry-collector
+    repo: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: 0.142.2
+    releaseName: otel-collector
+    namespace: opentelemetry
+    valuesFile: values.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: observability
+  app.kubernetes.io/component: collector
+

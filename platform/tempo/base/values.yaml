@@ -1,0 +1,95 @@
+# Tempo Helm chart values
+# Single binary mode for simplicity
+
+tempo:
+  repository: grafana/tempo
+  tag: "2.3.1"
+  
+  # Tempo configuration
+  reportingEnabled: false
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://prometheus-kube-prometheus-prometheus.prometheus.svc:9090/api/v1/write"
+  
+  # Storage configuration
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+  
+  # Receiver configuration
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+    jaeger:
+      protocols:
+        thrift_http:
+          endpoint: "0.0.0.0:14268"
+        grpc:
+          endpoint: "0.0.0.0:14250"
+        thrift_binary:
+          endpoint: "0.0.0.0:6832"
+        thrift_compact:
+          endpoint: "0.0.0.0:6831"
+    zipkin:
+      endpoint: "0.0.0.0:9411"
+  
+  # Global overrides
+  global_overrides:
+    per_tenant_override_config: /runtime-config/overrides.yaml
+  
+  overrides:
+    defaults:
+      ingestion:
+        rate_limit_bytes: 15000000
+        burst_size_bytes: 20000000
+        max_traces_per_user: 10000
+      search:
+        max_bytes_per_tag_values_query: 5000000
+      read:
+        max_bytes_per_tag_values_query: 5000000
+      metrics_generator:
+        max_active_series: 20000
+        collection_interval: 15s
+
+# Single binary deployment
+tempoQuery:
+  enabled: true
+  repository: grafana/tempo-query
+  tag: "2.3.1"
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Persistence
+persistence:
+  enabled: true
+  size: 10Gi
+
+# Service configuration
+service:
+  type: ClusterIP
+
+# Service monitor for Prometheus
+serviceMonitor:
+  enabled: true
+  labels:
+    release: prometheus
+
+# Autoscaling disabled by default
+autoscaling:
+  enabled: false
+

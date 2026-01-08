@@ -1,0 +1,43 @@
+# Helm
+*.tgz
+charts/*/charts/
+Chart.lock
+
+# Kustomize
+.kustomize-cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (should use External Secrets or Sealed Secrets instead)
+*-secret.yaml
+*.secret.yaml
+secrets/
+
+# Local testing
+.tmp/
+.cache/
+output/
+
+# Terraform (if used for infrastructure)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+

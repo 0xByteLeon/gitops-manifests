@@ -1,0 +1,38 @@
+# Dev environment - minimal resources
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+config:
+  processors:
+    resource:
+      attributes:
+        - key: cluster
+          value: "dev-cluster"
+          action: upsert
+        - key: environment
+          value: "dev"
+          action: upsert
+  
+  exporters:
+    # Enable debug exporter in dev
+    debug:
+      verbosity: detailed
+  
+  service:
+    pipelines:
+      traces:
+        exporters:
+          - otlp/tempo
+          - debug
+      logs:
+        exporters:
+          - loki
+          - debug
+

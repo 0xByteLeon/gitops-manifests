@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: qa
+
+resources:
+  - ../../base
+
+# QA environment common labels
+commonLabels:
+  environment: qa
+
+# Generate resources from Helm chart with QA values
+helmCharts:
+  - name: my-app
+    releaseName: my-app
+    namespace: qa
+    valuesFile: values-qa.yaml
+    additionalValuesFiles:
+      - ../../base/values.yaml
+
+# QA-specific patches
+patches:
+  # Two replicas for QA
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: my-app
+

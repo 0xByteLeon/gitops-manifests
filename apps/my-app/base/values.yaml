@@ -1,0 +1,147 @@
+# Default values for my-app
+# This is a YAML-formatted file.
+
+# -- Number of replicas
+replicaCount: 1
+
+image:
+  # -- Image repository
+  repository: your-registry.example.com/my-app
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Image tag (overridden by CI/CD)
+  tag: "latest"
+
+# -- Image pull secrets
+imagePullSecrets: []
+
+# -- Override name
+nameOverride: ""
+# -- Full name override
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create service account
+  create: true
+  # -- Service account annotations
+  annotations: {}
+  # -- Service account name
+  name: ""
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+# -- Container security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 80
+  # -- Target port
+  targetPort: 8080
+
+ingress:
+  # -- Enable ingress
+  enabled: false
+  # -- Ingress class name (traefik for k3s, nginx for nginx-ingress-controller)
+  className: traefik
+  # -- Ingress annotations
+  annotations: {}
+  # -- Ingress hosts
+  hosts:
+    - host: my-app.local
+      paths:
+        - path: /
+          pathType: Prefix
+  # -- Ingress TLS configuration
+  tls: []
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# -- Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -- Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+autoscaling:
+  # -- Enable HPA
+  enabled: false
+  # -- Minimum replicas
+  minReplicas: 1
+  # -- Maximum replicas
+  maxReplicas: 10
+  # -- Target CPU utilization
+  targetCPUUtilizationPercentage: 80
+  # -- Target memory utilization
+  targetMemoryUtilizationPercentage: 80
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Tolerations
+tolerations: []
+
+# -- Affinity rules
+affinity: {}
+
+# Application configuration
+config:
+  # -- Log level (debug, info, warn, error)
+  logLevel: info
+  # -- Log format (json, text)
+  logFormat: json
+
+# OpenTelemetry configuration
+otel:
+  # -- Enable OpenTelemetry
+  enabled: true
+  # -- OTLP endpoint (cross-namespace)
+  endpoint: "http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317"
+  # -- Service name for tracing
+  serviceName: "my-app"
+  # -- Sampling ratio (0.0 to 1.0)
+  samplingRatio: "1.0"
+
+# -- Environment variables
+env: []
+
+# -- Extra volumes
+extraVolumes: []
+
+# -- Extra volume mounts
+extraVolumeMounts: []
+

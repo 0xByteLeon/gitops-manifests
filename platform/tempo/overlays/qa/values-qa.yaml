@@ -1,0 +1,21 @@
+# QA environment Tempo values
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+persistence:
+  enabled: true
+  size: 20Gi
+
+tempo:
+  overrides:
+    defaults:
+      ingestion:
+        rate_limit_bytes: 15000000
+        burst_size_bytes: 20000000
+        max_traces_per_user: 10000
+

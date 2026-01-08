@@ -1,0 +1,143 @@
+# Validation workflow for GitOps repository
+# Runs on every PR to validate Kubernetes manifests
+
+name: Validate Manifests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/**'
+      - 'platform/**'
+      - 'argocd/**'
+
+jobs:
+  validate:
+    name: Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: "5.3.0"
+      
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.13.0'
+      
+      - name: Setup kubeconform
+        run: |
+          wget https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform-linux-amd64.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+      
+      - name: Validate app overlays
+        run: |
+          for overlay in apps/*/overlays/*/; do
+            echo "Validating: $overlay"
+            kustomize build "$overlay" | kubeconform -strict -summary || exit 1
+          done
+      
+      - name: Validate platform overlays
+        run: |
+          for overlay in platform/*/overlays/*/; do
+            echo "Validating: $overlay"
+            # Skip helm chart validation as it requires helm template
+            if [ -f "$overlay/kustomization.yaml" ]; then
+              # Just validate kustomization syntax
+              kustomize cfg tree "$overlay" || exit 1
+            fi
+          done
+      
+      - name: Lint YAML files
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 200
+              truthy:
+                allowed-values: ['true', 'false', 'yes', 'no']
+              comments:
+                require-starting-space: false
+
+  diff:
+    name: Generate Diff
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+      
+      - name: Checkout base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+      
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: "5.3.0"
+      
+      - name: Generate diff for changed overlays
+        id: diff
+        run: |
+          # Find changed overlay directories
+          CHANGED_OVERLAYS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^(apps|platform)/.*overlays/' | cut -d'/' -f1-4 | sort -u || true)
+          
+          if [ -z "$CHANGED_OVERLAYS" ]; then
+            echo "No overlay changes detected"
+            exit 0
+          fi
+          
+          echo "## Manifest Diff" >> diff_output.md
+          
+          for overlay in $CHANGED_OVERLAYS; do
+            echo "### $overlay" >> diff_output.md
+            echo '```diff' >> diff_output.md
+            
+            # Generate manifests for base and PR
+            if [ -d "base/$overlay" ]; then
+              kustomize build "base/$overlay" 2>/dev/null > base_manifest.yaml || echo "" > base_manifest.yaml
+            else
+              echo "" > base_manifest.yaml
+            fi
+            
+            if [ -d "$overlay" ]; then
+              kustomize build "$overlay" 2>/dev/null > pr_manifest.yaml || echo "" > pr_manifest.yaml
+            else
+              echo "" > pr_manifest.yaml
+            fi
+            
+            diff -u base_manifest.yaml pr_manifest.yaml >> diff_output.md || true
+            echo '```' >> diff_output.md
+            echo "" >> diff_output.md
+          done
+      
+      - name: Post diff as comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('diff_output.md')) {
+              const diff = fs.readFileSync('diff_output.md', 'utf8');
+              if (diff.trim()) {
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: diff.substring(0, 65000) // GitHub comment limit
+                });
+              }
+            }
+

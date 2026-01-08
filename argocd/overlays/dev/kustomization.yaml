@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - ../../base
+
+# Dev-specific patches
+patches:
+  # Reduce resource requests for dev environment
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+    target:
+      kind: Deployment
+      name: argocd-server
+  
+  # Enable insecure mode for local development (no TLS)
+  - patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --insecure
+    target:
+      kind: Deployment
+      name: argocd-server
+
+configMapGenerator:
+  - name: argocd-cm
+    behavior: merge
+    literals:
+      # Dev environment specific settings
+      - url=https://argocd.dev.example.com
+      - admin.enabled=true
+

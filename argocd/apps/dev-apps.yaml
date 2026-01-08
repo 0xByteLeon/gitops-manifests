@@ -1,0 +1,105 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dev-apps
+  namespace: argocd
+  labels:
+    environment: dev
+    app.kubernetes.io/part-of: gitops
+spec:
+  generators:
+    # Generate applications for all directories in apps/*/overlays/dev
+    - git:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        revision: HEAD
+        directories:
+          - path: apps/*/overlays/dev
+  
+  template:
+    metadata:
+      name: "{{path[1]}}-dev"
+      namespace: argocd
+      labels:
+        environment: dev
+        app: "{{path[1]}}"
+    spec:
+      project: apps
+      
+      source:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        targetRevision: HEAD
+        path: "{{path}}"
+      
+      destination:
+        # Dev cluster - update with actual cluster URL
+        server: https://dev-cluster.example.com
+        namespace: dev
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 1m
+---
+# Platform apps for Dev environment
+# Each component deploys to its own namespace (defined in kustomization.yaml)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dev-platform
+  namespace: argocd
+  labels:
+    environment: dev
+    app.kubernetes.io/part-of: gitops
+spec:
+  generators:
+    - git:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        revision: HEAD
+        directories:
+          - path: platform/*/overlays/dev
+  
+  template:
+    metadata:
+      name: "{{path[1]}}-dev"
+      namespace: argocd
+      labels:
+        environment: dev
+        component: platform
+        app: "{{path[1]}}"
+    spec:
+      project: platform
+      
+      source:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        targetRevision: HEAD
+        path: "{{path}}"
+      
+      destination:
+        server: https://dev-cluster.example.com
+        # Namespace is defined in each component's kustomization.yaml
+        # prometheus -> prometheus, grafana -> grafana, etc.
+        namespace: "{{path[1]}}"
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 1m
+

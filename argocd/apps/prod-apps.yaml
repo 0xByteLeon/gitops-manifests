@@ -1,0 +1,107 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: prod-apps
+  namespace: argocd
+  labels:
+    environment: prod
+    app.kubernetes.io/part-of: gitops
+spec:
+  generators:
+    # Generate applications for all directories in apps/*/overlays/prod
+    - git:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        revision: HEAD
+        directories:
+          - path: apps/*/overlays/prod
+  
+  template:
+    metadata:
+      name: "{{path[1]}}-prod"
+      namespace: argocd
+      labels:
+        environment: prod
+        app: "{{path[1]}}"
+      annotations:
+        # Production requires manual sync
+        argocd.argoproj.io/sync-options: Validate=true
+    spec:
+      project: apps
+      
+      source:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        targetRevision: HEAD
+        path: "{{path}}"
+      
+      destination:
+        # Production cluster - update with actual cluster URL
+        server: https://prod-cluster.example.com
+        namespace: prod
+      
+      # Production: Manual sync required for safety
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - PrunePropagationPolicy=foreground
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 5m
+---
+# Platform apps for Production environment
+# Each component deploys to its own namespace (defined in kustomization.yaml)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: prod-platform
+  namespace: argocd
+  labels:
+    environment: prod
+    app.kubernetes.io/part-of: gitops
+spec:
+  generators:
+    - git:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        revision: HEAD
+        directories:
+          - path: platform/*/overlays/prod
+  
+  template:
+    metadata:
+      name: "{{path[1]}}-prod"
+      namespace: argocd
+      labels:
+        environment: prod
+        component: platform
+        app: "{{path[1]}}"
+      annotations:
+        argocd.argoproj.io/sync-options: Validate=true
+    spec:
+      project: platform
+      
+      source:
+        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        targetRevision: HEAD
+        path: "{{path}}"
+      
+      destination:
+        server: https://prod-cluster.example.com
+        # Namespace is defined in each component's kustomization.yaml
+        namespace: "{{path[1]}}"
+      
+      # Production: Manual sync for platform components
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - PrunePropagationPolicy=foreground
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 5m
+

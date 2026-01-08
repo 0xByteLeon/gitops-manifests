@@ -1,0 +1,72 @@
+# Dev environment values - Using nginx for demo
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: "alpine"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+config:
+  logLevel: debug
+  logFormat: text
+
+# Override service port to match nginx default
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+# Override probes for nginx
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 5
+
+# Disable autoscaling in dev
+autoscaling:
+  enabled: false
+
+# Dev ingress - using traefik (default for k3s)
+# Change to "nginx" if using nginx-ingress-controller
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    # Traefik annotations
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  hosts:
+    - host: my-app.dev.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# OpenTelemetry for dev (cross-namespace)
+otel:
+  enabled: true
+  endpoint: "http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317"
+  serviceName: "my-app-dev"
+  samplingRatio: "1.0"
+
+# Security context - nginx needs to run as root or adjust
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false

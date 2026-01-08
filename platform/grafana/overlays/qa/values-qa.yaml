@@ -1,0 +1,47 @@
+# QA environment Grafana values
+replicas: 1
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+persistence:
+  enabled: true
+  size: 10Gi
+
+# QA admin credentials via secret
+adminPassword: ""
+admin:
+  existingSecret: grafana-admin-credentials
+  userKey: admin-user
+  passwordKey: admin-password
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+  hosts:
+    - grafana.qa.example.com
+  tls:
+    - secretName: grafana-qa-tls
+      hosts:
+        - grafana.qa.example.com
+
+grafana.ini:
+  server:
+    root_url: "https://grafana.qa.example.com"
+    serve_from_sub_path: false
+  
+  log:
+    level: info
+  
+  auth.anonymous:
+    enabled: false
+
