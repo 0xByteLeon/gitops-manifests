@@ -1,7 +1,10 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Generate resources from Helm chart
+# Generate resources from local Helm chart (chart is in current directory)
+helmGlobals:
+  chartHome: .
+
 helmCharts:
   - name: my-app
     releaseName: my-app
@@ -10,7 +13,9 @@ helmCharts:
     includeCRDs: false
 
 # Common labels applied to all resources
-commonLabels:
-  app.kubernetes.io/part-of: my-app
-  app.kubernetes.io/managed-by: kustomize
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: my-app
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
 

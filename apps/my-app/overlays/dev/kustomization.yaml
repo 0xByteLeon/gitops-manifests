@@ -12,7 +12,10 @@ labels:
       app.kubernetes.io/managed-by: kustomize
     includeSelectors: false
 
-# Generate resources from Helm chart with dev values
+# Generate resources from local Helm chart with dev values
+helmGlobals:
+  chartHome: ../../base
+
 helmCharts:
   - name: my-app
     releaseName: my-app
