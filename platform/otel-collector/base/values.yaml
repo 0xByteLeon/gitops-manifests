@@ -95,10 +95,11 @@ config:
     # Loki for logs (cross-namespace)
     loki:
       endpoint: "http://loki-gateway.loki.svc:3100/loki/api/v1/push"
-      labels:
-        attributes:
-          service.name: service_name
-          service.namespace: service_namespace
+      default_labels_enabled:
+        exporter: false
+        job: true
+        instance: true
+        level: true
     
     # Tempo for traces (cross-namespace)
     otlp/tempo:
