@@ -21,9 +21,8 @@ ingress:
   ingressClassName: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+  path: /
+  pathType: Prefix
   hosts:
-    - host: tempo.dev.local
-      paths:
-        - path: /
-          pathType: Prefix
+    - tempo.dev.local
 
