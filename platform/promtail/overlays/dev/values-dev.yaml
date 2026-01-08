@@ -1,0 +1,31 @@
+# Dev environment specific values for Promtail
+
+# Lower resources for dev
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 25m
+    memory: 64Mi
+
+# Add dev-specific labels to all logs
+config:
+  snippets:
+    extraRelabelConfigs:
+      - action: replace
+        source_labels:
+          - __meta_kubernetes_pod_label_app_kubernetes_io_name
+        target_label: app
+      - action: replace
+        source_labels:
+          - __meta_kubernetes_pod_label_app_kubernetes_io_component
+        target_label: component
+      - action: replace
+        source_labels:
+          - __meta_kubernetes_pod_label_app_kubernetes_io_instance
+        target_label: instance
+      # Add environment label
+      - action: replace
+        replacement: dev
+        target_label: environment
