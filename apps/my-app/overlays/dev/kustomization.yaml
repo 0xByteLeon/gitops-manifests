@@ -3,12 +3,14 @@ kind: Kustomization
 
 namespace: dev
 
-resources:
-  - ../../base
+# Don't include ../../base as resource (avoid duplicate helmCharts)
 
-# Dev environment common labels
-commonLabels:
-  environment: dev
+labels:
+  - pairs:
+      environment: dev
+      app.kubernetes.io/part-of: my-app
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
 
 # Generate resources from Helm chart with dev values
 helmCharts:

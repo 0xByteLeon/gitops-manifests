@@ -3,11 +3,19 @@ kind: Kustomization
 
 namespace: grafana
 
+# Only reference specific resources from base, not the entire base
+# (to avoid duplicate helmCharts definition)
 resources:
-  - ../../base
+  - ../../base/namespace.yaml
+  - ../../base/datasources-configmap.yaml
+  - ../../base/dashboards-configmap.yaml
 
-commonLabels:
-  environment: dev
+labels:
+  - pairs:
+      environment: dev
+      app.kubernetes.io/part-of: observability
+      app.kubernetes.io/component: visualization
+    includeSelectors: false
 
 helmCharts:
   - name: grafana

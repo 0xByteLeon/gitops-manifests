@@ -3,11 +3,16 @@ kind: Kustomization
 
 namespace: loki
 
+# Only reference specific resources from base (avoid duplicate helmCharts)
 resources:
-  - ../../base
+  - ../../base/namespace.yaml
 
-commonLabels:
-  environment: dev
+labels:
+  - pairs:
+      environment: dev
+      app.kubernetes.io/part-of: observability
+      app.kubernetes.io/component: logging
+    includeSelectors: false
 
 helmCharts:
   - name: loki

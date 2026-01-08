@@ -3,11 +3,16 @@ kind: Kustomization
 
 namespace: prometheus
 
+# Only reference specific resources from base (avoid duplicate helmCharts)
 resources:
-  - ../../base
+  - ../../base/namespace.yaml
 
-commonLabels:
-  environment: dev
+labels:
+  - pairs:
+      environment: dev
+      app.kubernetes.io/part-of: observability
+      app.kubernetes.io/component: metrics
+    includeSelectors: false
 
 helmCharts:
   - name: kube-prometheus-stack
