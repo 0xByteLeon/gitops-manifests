@@ -25,6 +25,8 @@ configMapGenerator:
       - server.diff.enabled=true
       - resource.exclusions=""
       - resource.inclusions=""
+      # Enable Helm support for Kustomize builds
+      - kustomize.buildOptions=--enable-helm
 
 # Patches to customize ArgoCD
 patches:
