@@ -89,6 +89,14 @@ spec:
         # prometheus -> prometheus, grafana -> grafana, etc.
         namespace: "{{path[1]}}"
       
+      # Ignore differences that Kubernetes adds automatically
+      ignoreDifferences:
+        - group: apps
+          kind: StatefulSet
+          jsonPointers:
+            - /spec/volumeClaimTemplates/0/apiVersion
+            - /spec/volumeClaimTemplates/0/kind
+      
       syncPolicy:
         automated:
           prune: true
