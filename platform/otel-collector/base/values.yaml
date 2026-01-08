@@ -1,7 +1,6 @@
 # OpenTelemetry Collector configuration
-mode: deployment
-
-replicaCount: 1
+# DaemonSet mode to collect logs from all nodes
+mode: daemonset
 
 image:
   repository: otel/opentelemetry-collector-contrib
@@ -36,6 +35,17 @@ ports:
     servicePort: 8889
     protocol: TCP
 
+# Presets for Kubernetes log collection
+presets:
+  logsCollection:
+    enabled: true
+    includeCollectorLogs: false
+    storeCheckpoints: true
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+    extractAllPodAnnotations: false
+
 # Collector configuration
 config:
   receivers:
@@ -45,10 +55,6 @@ config:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
-    
-    # Kubernetes metrics receiver
-    k8s_cluster:
-      collection_interval: 30s
     
     # Prometheus receiver for self-monitoring
     prometheus:
@@ -75,26 +81,32 @@ config:
     resource:
       attributes:
         - key: cluster
-          value: "${CLUSTER_NAME}"
+          value: "dev"
           action: upsert
     
-    # Transform processor for log processing
-    transform:
-      log_statements:
-        - context: log
-          statements:
-            - set(severity_text, "INFO") where severity_text == ""
+    # Resource detection for Kubernetes
+    resourcedetection:
+      detectors: [env, system]
+      timeout: 5s
+      override: false
+    
+    # Attributes processor for log labels
+    attributes:
+      actions:
+        - key: loki.attribute.labels
+          value: k8s.namespace.name, k8s.pod.name, k8s.container.name
+          action: insert
 
   exporters:
     # Prometheus remote write for metrics (cross-namespace)
     prometheusremotewrite:
-      endpoint: "http://prometheus-kube-prometheus-prometheus.prometheus.svc:9090/api/v1/write"
+      endpoint: "http://prometheus-prometheus.prometheus.svc:9090/api/v1/write"
       tls:
         insecure: true
     
-    # Loki for logs (cross-namespace)
+    # Loki for logs (cross-namespace) - use port 80 for gateway
     loki:
-      endpoint: "http://loki-gateway.loki.svc:3100/loki/api/v1/push"
+      endpoint: "http://loki-gateway.loki.svc:80/loki/api/v1/push"
       default_labels_enabled:
         exporter: false
         job: true
@@ -133,6 +145,7 @@ config:
           - otlp
         processors:
           - memory_limiter
+          - resourcedetection
           - batch
           - resource
         exporters:
@@ -144,6 +157,7 @@ config:
           - prometheus
         processors:
           - memory_limiter
+          - resourcedetection
           - batch
           - resource
         exporters:
@@ -152,10 +166,27 @@ config:
       logs:
         receivers:
           - otlp
+          - filelog
         processors:
           - memory_limiter
+          - resourcedetection
+          - k8sattributes
+          - attributes
           - batch
-          - transform
         exporters:
           - loki
 
+# Tolerations to run on all nodes
+tolerations:
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+# ServiceMonitor for Prometheus
+serviceMonitor:
+  enabled: true
+  metricsEndpoints:
+    - port: prometheus
