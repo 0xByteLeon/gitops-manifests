@@ -16,10 +16,10 @@ labels:
 
 helmCharts:
   # CRDs must be installed first - using official prometheus-operator-crds chart
-  # Version should match kube-prometheus-stack's prometheus-operator dependency
+  # CRDs are backward compatible, use latest stable version
   - name: prometheus-operator-crds
     repo: https://prometheus-community.github.io/helm-charts
-    version: 18.0.2
+    version: 25.0.1
     releaseName: prometheus-crds
     namespace: prometheus
   
