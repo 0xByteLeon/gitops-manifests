@@ -23,7 +23,8 @@ helmCharts:
     version: 10.5.3
     releaseName: grafana
     namespace: grafana
-    valuesFile: values-dev.yaml
+    # Base values first, then dev overrides
+    valuesFile: ../../base/values.yaml
     additionalValuesFiles:
-      - ../../base/values.yaml
+      - values-dev.yaml
 

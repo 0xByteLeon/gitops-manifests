@@ -20,7 +20,8 @@ helmCharts:
     version: 6.49.0
     releaseName: loki
     namespace: loki
-    valuesFile: values-dev.yaml
+    # Base values first, then dev overrides
+    valuesFile: ../../base/values.yaml
     additionalValuesFiles:
-      - ../../base/values.yaml
+      - values-dev.yaml
 
