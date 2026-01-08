@@ -32,7 +32,7 @@ spec:
       
       destination:
         # Dev cluster - update with actual cluster URL
-        server: https://dev-cluster.example.com
+        server: https://kubernetes.default.svc
         namespace: dev
       
       syncPolicy:
@@ -84,7 +84,7 @@ spec:
         path: "{{path}}"
       
       destination:
-        server: https://dev-cluster.example.com
+        server: https://kubernetes.default.svc
         # Namespace is defined in each component's kustomization.yaml
         # prometheus -> prometheus, grafana -> grafana, etc.
         namespace: "{{path[1]}}"
