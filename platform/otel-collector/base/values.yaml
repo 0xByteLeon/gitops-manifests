@@ -2,7 +2,7 @@
 # DaemonSet mode to collect logs from all nodes
 mode: daemonset
 
-# Image configuration - contrib distribution required for Loki exporter
+# Image configuration - contrib distribution
 image:
   repository: otel/opentelemetry-collector-contrib
 
@@ -90,14 +90,11 @@ config:
       tls:
         insecure: true
     
-    # Loki for logs (cross-namespace) - use port 80 for gateway
-    loki:
-      endpoint: "http://loki-gateway.loki.svc:80/loki/api/v1/push"
-      default_labels_enabled:
-        exporter: false
-        job: true
-        instance: true
-        level: true
+    # Loki for logs via OTLP HTTP (Loki 3.x native OTLP support)
+    otlphttp/loki:
+      endpoint: "http://loki.loki.svc:3100/otlp"
+      tls:
+        insecure: true
     
     # Tempo for traces (cross-namespace)
     otlp/tempo:
@@ -154,7 +151,7 @@ config:
           - memory_limiter
           - batch
         exporters:
-          - loki
+          - otlphttp/loki
 
 # Tolerations to run on all nodes
 tolerations:
