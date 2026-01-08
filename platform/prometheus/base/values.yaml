@@ -4,12 +4,16 @@
 # Global settings
 fullnameOverride: prometheus
 
+# Install CRDs (required for PrometheusRule, ServiceMonitor, etc.)
+crds:
+  enabled: true
+
 # Default rules
 defaultRules:
   create: true
   rules:
     alertmanager: true
-    etcd: true
+    etcd: false  # Not accessible in k3d
     configReloaders: true
     general: true
     k8s: true
@@ -17,17 +21,17 @@ defaultRules:
     kubeApiserverBurnrate: true
     kubeApiserverHistogram: true
     kubeApiserverSlos: true
-    kubeControllerManager: true
+    kubeControllerManager: false  # Not accessible in k3d
     kubelet: true
-    kubeProxy: true
+    kubeProxy: false  # k3d uses different proxy
     kubePrometheusGeneral: true
     kubePrometheusNodeRecording: true
     kubernetesApps: true
     kubernetesResources: true
     kubernetesStorage: true
     kubernetesSystem: true
-    kubeSchedulerAlerting: true
-    kubeSchedulerRecording: true
+    kubeSchedulerAlerting: false  # Not accessible in k3d
+    kubeSchedulerRecording: false  # Not accessible in k3d
     kubeStateMetrics: true
     network: true
     node: true
@@ -155,20 +159,22 @@ kubeStateMetrics:
   enabled: true
 
 # Kube components
+# Note: In k3d, control plane components run inside containers
+# and are not directly accessible via standard endpoints
 kubeApiServer:
   enabled: true
 
 kubeControllerManager:
-  enabled: true
+  enabled: false  # Not accessible in k3d
 
 kubeScheduler:
-  enabled: true
+  enabled: false  # Not accessible in k3d
 
 kubeProxy:
-  enabled: true
+  enabled: false  # k3d uses different networking
 
 kubeEtcd:
-  enabled: true
+  enabled: false  # Not accessible in k3d
 
 kubelet:
   enabled: true
