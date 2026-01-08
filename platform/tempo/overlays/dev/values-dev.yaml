@@ -15,3 +15,15 @@ persistence:
 tempoQuery:
   enabled: false
 
+# Tempo Ingress (for API access)
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  hosts:
+    - host: tempo.dev.local
+      paths:
+        - path: /
+          pathType: Prefix
+

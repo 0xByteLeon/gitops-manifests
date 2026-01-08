@@ -23,6 +23,17 @@ gateway:
     requests:
       cpu: 25m
       memory: 64Mi
+  # Loki Gateway Ingress
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+    hosts:
+      - host: loki.dev.local
+        paths:
+          - path: /
+            pathType: Prefix
 
 loki:
   limits_config:

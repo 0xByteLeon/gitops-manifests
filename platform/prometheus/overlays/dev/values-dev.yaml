@@ -15,8 +15,28 @@ alertmanager:
           resources:
             requests:
               storage: 5Gi
+  # Alertmanager Ingress
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+    hosts:
+      - alertmanager.dev.local
+    paths:
+      - /
 
 prometheus:
+  # Prometheus Ingress
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+    hosts:
+      - prometheus.dev.local
+    paths:
+      - /
   prometheusSpec:
     replicas: 1
     retention: 7d
