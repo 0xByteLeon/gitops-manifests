@@ -6,11 +6,11 @@ replicaCount: 1
 
 image:
   # -- Image repository
-  repository: your-registry.example.com/my-app
+  repository: nginx
   # -- Image pull policy
   pullPolicy: IfNotPresent
-  # -- Image tag (overridden by CI/CD)
-  tag: "latest"
+  # -- Image tag
+  tag: "alpine"
 
 # -- Image pull secrets
 imagePullSecrets: []
@@ -32,26 +32,18 @@ serviceAccount:
 podAnnotations: {}
 
 # -- Pod security context
-podSecurityContext:
-  fsGroup: 1000
+podSecurityContext: {}
 
-# -- Container security context
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  readOnlyRootFilesystem: true
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
+# -- Container security context (nginx needs to run as root for port 80)
+securityContext: {}
 
 service:
   # -- Service type
   type: ClusterIP
   # -- Service port
   port: 80
-  # -- Target port
-  targetPort: 8080
+  # -- Target port (nginx listens on 80)
+  targetPort: 80
 
 ingress:
   # -- Enable ingress
@@ -77,12 +69,12 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-# -- Liveness probe configuration
+# -- Liveness probe configuration (nginx uses / path)
 livenessProbe:
   httpGet:
-    path: /health/live
+    path: /
     port: http
-  initialDelaySeconds: 10
+  initialDelaySeconds: 5
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
@@ -90,9 +82,9 @@ livenessProbe:
 # -- Readiness probe configuration
 readinessProbe:
   httpGet:
-    path: /health/ready
+    path: /
     port: http
-  initialDelaySeconds: 5
+  initialDelaySeconds: 3
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
