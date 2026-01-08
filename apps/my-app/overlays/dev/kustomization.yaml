@@ -13,11 +13,12 @@ labels:
     includeSelectors: false
 
 # Generate resources from local Helm chart with dev values
+# chartHome points to parent of chart directory, name is the chart subdirectory
 helmGlobals:
-  chartHome: ../../base
+  chartHome: ../..
 
 helmCharts:
-  - name: my-app
+  - name: base
     releaseName: my-app
     namespace: dev
     valuesFile: values-dev.yaml
