@@ -1,0 +1,57 @@
+
+apiVersion: k3d.io/v1alpha5
+
+kind: Simple
+
+metadata:
+
+  name: dev-cluster
+
+servers: 1
+
+agents: 2
+
+image: rancher/k3s:v1.31.4-k3s1
+
+ports:
+
+  # Traefik Ingress HTTP
+
+  - port: 80:80
+
+    nodeFilters:
+
+      - loadbalancer
+
+  # Traefik Ingress HTTPS
+
+  - port: 443:443
+
+    nodeFilters:
+
+      - loadbalancer
+
+options:
+
+  k3d:
+
+    wait: true
+
+    timeout: "120s"
+
+  kubeconfig:
+
+    updateDefaultKubeconfig: true
+
+    switchCurrentContext: true
+
+registries:
+
+  create:
+
+    name: dev-registry
+
+    host: "0.0.0.0"
+
+    hostPort: "5000"
+

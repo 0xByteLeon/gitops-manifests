@@ -9,8 +9,10 @@ resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.3/manifests/install.yaml
 
 # Common labels for all resources
-commonLabels:
-  app.kubernetes.io/managed-by: kustomize
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: true
 
 # ConfigMap generator for ArgoCD configuration
 configMapGenerator:
