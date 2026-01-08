@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prometheus Operator CRDs - deployed separately to ensure
+# CRDs exist before dependent resources are created
+helmCharts:
+  - name: prometheus-operator-crds
+    repo: https://prometheus-community.github.io/helm-charts
+    version: 18.0.2  # Match with kube-prometheus-stack version
+    releaseName: prometheus-crds
+    namespace: prometheus
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: observability
+      app.kubernetes.io/component: crds
+    includeSelectors: false
