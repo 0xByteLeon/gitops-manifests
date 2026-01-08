@@ -2,7 +2,9 @@
 # DaemonSet mode to collect logs from all nodes
 mode: daemonset
 
-# Use default image from chart (contrib distribution)
+# Image configuration - contrib distribution required for Loki exporter
+image:
+  repository: otel/opentelemetry-collector-contrib
 
 resources:
   limits:
