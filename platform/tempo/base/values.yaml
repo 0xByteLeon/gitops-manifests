@@ -38,11 +38,10 @@ tempo:
     zipkin:
       endpoint: "0.0.0.0:9411"
 
-# Single binary deployment
+# Disable tempo-query sidecar - use Grafana's native Tempo datasource instead
+# tempo-query has compatibility issues with newer Jaeger versions
 tempoQuery:
-  enabled: true
-  repository: grafana/tempo-query
-  tag: "2.3.1"
+  enabled: false
 
 # Resources
 resources:

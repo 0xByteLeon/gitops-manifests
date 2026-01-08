@@ -11,11 +11,7 @@ persistence:
   enabled: true
   size: 5Gi
 
-tempo:
-  overrides:
-    defaults:
-      ingestion:
-        rate_limit_bytes: 5000000
-        burst_size_bytes: 10000000
-        max_traces_per_user: 5000
+# Disable tempo-query sidecar (use Grafana's native Tempo datasource instead)
+tempoQuery:
+  enabled: false
 
