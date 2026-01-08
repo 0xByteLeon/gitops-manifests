@@ -10,7 +10,7 @@ spec:
   generators:
     # Generate applications for all directories in apps/*/overlays/prod
     - git:
-        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        repoURL: https://github.com/0xByteLeon/gitops-manifests.git
         revision: HEAD
         directories:
           - path: apps/*/overlays/prod
@@ -29,7 +29,7 @@ spec:
       project: apps
       
       source:
-        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        repoURL: https://github.com/0xByteLeon/gitops-manifests.git
         targetRevision: HEAD
         path: "{{path}}"
       
@@ -64,7 +64,7 @@ metadata:
 spec:
   generators:
     - git:
-        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        repoURL: https://github.com/0xByteLeon/gitops-manifests.git
         revision: HEAD
         directories:
           - path: platform/*/overlays/prod
@@ -83,7 +83,7 @@ spec:
       project: platform
       
       source:
-        repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+        repoURL: https://github.com/0xByteLeon/gitops-manifests.git
         targetRevision: HEAD
         path: "{{path}}"
       
