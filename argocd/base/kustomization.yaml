@@ -6,7 +6,7 @@ namespace: argocd
 resources:
   - namespace.yaml
   # ArgoCD official installation manifest
-  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.3/manifests/install.yaml
 
 # Common labels for all resources
 commonLabels:
@@ -17,7 +17,10 @@ configMapGenerator:
   - name: argocd-cm
     behavior: merge
     literals:
+      # Resource tracking method (annotation is default in v3.x)
       - application.resourceTrackingMethod=annotation
+      # Server-side diff for better performance in v3.x
+      - server.diff.enabled=true
       - resource.exclusions=""
       - resource.inclusions=""
 
