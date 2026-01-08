@@ -21,9 +21,10 @@ helmCharts:
   - name: base
     releaseName: my-app
     namespace: dev
-    valuesFile: values-dev.yaml
+    # Base values first, then dev overrides
+    valuesFile: ../../base/values.yaml
     additionalValuesFiles:
-      - ../../base/values.yaml
+      - values-dev.yaml
 
 # Dev-specific patches
 patches:
