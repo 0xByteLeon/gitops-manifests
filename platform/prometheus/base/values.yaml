@@ -4,9 +4,10 @@
 # Global settings
 fullnameOverride: prometheus
 
-# Install CRDs (required for PrometheusRule, ServiceMonitor, etc.)
+# CRDs managed separately via prometheus-operator-crds chart
+# to ensure proper installation order
 crds:
-  enabled: true
+  enabled: false
 
 # Default rules
 defaultRules:
