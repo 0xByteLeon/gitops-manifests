@@ -12,7 +12,7 @@ spec:
   project: default
   
   source:
-    repoURL: git@github.com:0xByteLeon/gitops-manifests.git
+    repoURL: https://github.com/0xByteLeon/gitops-manifests.git
     targetRevision: HEAD
     path: argocd/apps
     directory:
@@ -52,7 +52,7 @@ spec:
   description: Platform infrastructure components (LGTM observability stack)
   
   sourceRepos:
-    - git@github.com:0xByteLeon/gitops-manifests.git
+    - https://github.com/0xByteLeon/gitops-manifests.git
     - https://grafana.github.io/helm-charts
     - https://prometheus-community.github.io/helm-charts
     - https://open-telemetry.github.io/opentelemetry-helm-charts
@@ -102,7 +102,7 @@ spec:
   description: Business applications
   
   sourceRepos:
-    - git@github.com:0xByteLeon/gitops-manifests.git
+    - https://github.com/0xByteLeon/gitops-manifests.git
   
   destinations:
     - namespace: dev
