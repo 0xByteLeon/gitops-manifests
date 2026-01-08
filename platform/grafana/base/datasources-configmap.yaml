@@ -18,12 +18,12 @@ data:
         orgId: 1
     
     datasources:
-      # Prometheus - Metrics (cross-namespace: prometheus.prometheus.svc)
+      # Prometheus - Metrics (cross-namespace)
       - name: Prometheus
         type: prometheus
         uid: prometheus
         access: proxy
-        url: http://prometheus-kube-prometheus-prometheus.prometheus.svc:9090
+        url: http://prometheus-prometheus.prometheus.svc:9090
         isDefault: true
         editable: false
         jsonData:
@@ -33,12 +33,12 @@ data:
             - name: trace_id
               datasourceUid: tempo
         
-      # Loki - Logs (cross-namespace: loki.loki.svc)
+      # Loki - Logs (cross-namespace via gateway)
       - name: Loki
         type: loki
         uid: loki
         access: proxy
-        url: http://loki-gateway.loki.svc:3100
+        url: http://loki-gateway.loki.svc:80
         editable: false
         jsonData:
           maxLines: 1000
@@ -48,12 +48,12 @@ data:
               name: TraceID
               url: "$${__value.raw}"
         
-      # Tempo - Traces (cross-namespace: tempo.tempo.svc)
+      # Tempo - Traces (cross-namespace, port 3200 for HTTP API)
       - name: Tempo
         type: tempo
         uid: tempo
         access: proxy
-        url: http://tempo.tempo.svc:3100
+        url: http://tempo.tempo.svc:3200
         editable: false
         jsonData:
           httpMethod: GET
