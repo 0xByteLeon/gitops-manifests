@@ -21,10 +21,10 @@ opensearch:
 # 默认配置
 default:
   # 使用我们自己的 OTel Collector (跨 namespace 访问)
+  # 注意：使用 env 而不是 envOverrides，避免覆盖 chart 默认的 OTEL_SERVICE_NAME 等变量
   env:
     - name: OTEL_COLLECTOR_NAME
       value: "otel-collector-opentelemetry-collector.opentelemetry.svc"
-  envOverrides:
     - name: OTEL_EXPORTER_OTLP_ENDPOINT
       value: "http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317"
 
