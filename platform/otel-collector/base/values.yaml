@@ -14,8 +14,10 @@ resources:
     cpu: 100m
     memory: 256Mi
 
-# Service configuration
+# Service configuration - enabled to allow applications to send traces
+# In DaemonSet mode, service must be explicitly enabled
 service:
+  enabled: true
   type: ClusterIP
 
 ports:

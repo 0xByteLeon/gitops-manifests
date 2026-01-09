@@ -20,7 +20,8 @@ helmCharts:
     version: 0.142.2
     releaseName: otel-collector
     namespace: opentelemetry
-    valuesFile: values-dev.yaml
+    # Base values first, then dev-specific overrides
+    valuesFile: ../../base/values.yaml
     additionalValuesFiles:
-      - ../../base/values.yaml
+      - values-dev.yaml
 

@@ -1,6 +1,12 @@
 # Dev environment - minimal resources
 replicaCount: 1
 
+# Explicitly enable Service for DaemonSet mode
+# This is required for applications to send traces to the collector
+service:
+  enabled: true
+  type: ClusterIP
+
 resources:
   limits:
     cpu: 200m
