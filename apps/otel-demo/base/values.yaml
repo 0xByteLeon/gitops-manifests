@@ -1,5 +1,6 @@
 # OpenTelemetry Demo Helm Chart Values
 # 官方微服务示例应用，用于测试链路追踪
+# Chart version: 0.32.8
 
 # 禁用内置的可观测性组件（使用我们自己的 LGTM 栈）
 opentelemetry-collector:
@@ -20,19 +21,9 @@ opensearch:
 # 默认配置
 default:
   # 使用我们自己的 OTel Collector
-  env:
+  envOverrides:
     - name: OTEL_EXPORTER_OTLP_ENDPOINT
       value: "http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317"
-    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
-      value: cumulative
-  # 资源限制（适合本地开发）
-  resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 50m
-      memory: 128Mi
 
 # 各服务配置
 components:
@@ -40,190 +31,123 @@ components:
   frontend:
     enabled: true
     service:
-      type: ClusterIP
       port: 8080
-    ingress:
-      enabled: false
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 前端代理
   frontendProxy:
     enabled: true
     service:
-      type: ClusterIP
       port: 8080
-    ingress:
-      enabled: false
     resources:
       limits:
-        cpu: 100m
         memory: 128Mi
-      requests:
-        cpu: 25m
-        memory: 64Mi
 
   # 负载生成器 - 自动生成流量和 Traces
   loadgenerator:
     enabled: true
     resources:
       limits:
-        cpu: 500m
         memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 256Mi
 
   # 产品目录服务
   productCatalogService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 推荐服务
   recommendationService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 购物车服务
   cartService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 结账服务
   checkoutService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 货币服务
   currencyService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 邮件服务
   emailService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 支付服务
   paymentService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 配送服务
   shippingService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
   # 广告服务
   adService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 512Mi
-      requests:
-        cpu: 50m
-        memory: 256Mi
-
-  # 特性标志服务
-  featureflagService:
-    enabled: false
-
-  # Kafka
-  kafka:
-    enabled: false
-
-  # 欺诈检测服务
-  frauddetectionService:
-    enabled: false
-
-  # 会计服务
-  accountingService:
-    enabled: false
 
   # 报价服务
   quoteService:
     enabled: true
     resources:
       limits:
-        cpu: 200m
         memory: 256Mi
-      requests:
-        cpu: 50m
-        memory: 128Mi
 
-  # Redis (购物车存储)
-  redis:
-    enabled: true
-    resources:
-      limits:
-        cpu: 100m
-        memory: 128Mi
-      requests:
-        cpu: 25m
-        memory: 64Mi
+  # 会计服务 (需要 Kafka)
+  accountingService:
+    enabled: false
 
-  # Valkey (Redis 替代)
-  valkey:
+  # 欺诈检测服务 (需要 Kafka)
+  frauddetectionService:
     enabled: false
 
   # 图片提供服务
   imageprovider:
     enabled: false
 
-  # Flagd
+  # Flagd (特性标志)
   flagd:
+    enabled: true
+    resources:
+      limits:
+        memory: 128Mi
+
+  # Kafka
+  kafka:
     enabled: false
+
+  # Valkey (Redis 替代，用于购物车存储)
+  valkey:
+    enabled: true
+    resources:
+      limits:
+        memory: 128Mi
