@@ -1,0 +1,57 @@
+# ArgoCD Self-Management Application
+# This allows ArgoCD to manage itself (self-hosted pattern)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: gitops
+  # Prevent accidental deletion
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/0xByteLeon/gitops-manifests.git
+    targetRevision: HEAD
+    path: argocd/overlays/dev
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      # Be careful with allowEmpty - set to false to prevent accidental deletion
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      # Use server-side apply for CRDs and large resources
+      - ServerSideApply=true
+      # Respect resource finalizers during sync
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignore differences that are expected
+  ignoreDifferences:
+    # Ignore changes to argocd-cm that are managed externally
+    - group: ""
+      kind: ConfigMap
+      name: argocd-cm
+      jsonPointers:
+        - /data/accounts.admin
+    # Ignore secret changes managed by ArgoCD itself
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
