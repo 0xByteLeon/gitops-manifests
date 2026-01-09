@@ -5,6 +5,7 @@ namespace: argocd
 
 resources:
   - ../../base
+  - ingress.yaml
 
 # Dev-specific patches
 patches:
@@ -41,6 +42,6 @@ configMapGenerator:
     behavior: merge
     literals:
       # Dev environment specific settings
-      - url=https://argocd.dev.example.com
+      - url=http://argocd.dev.local
       - admin.enabled=true
 
