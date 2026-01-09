@@ -26,7 +26,7 @@
 | kubectl | 1.25+ | Kubernetes CLI |
 | kustomize | 5.0+ | 配置管理 |
 | helm | 3.12+ | Helm Chart 渲染 |
-| argocd CLI | 2.9+ | ArgoCD 命令行工具 |
+| argocd CLI | 3.0+ | ArgoCD 命令行工具 |
 
 ---
 
@@ -138,12 +138,11 @@ argocd version --client
 
 ## 二、创建 k3d 集群
 
-### 2.1 创建集群配置文件
+### 2.1 使用项目配置文件创建集群
 
-创建 k3d 集群配置文件 `k3d-dev-config.yaml`:
+项目根目录已包含 k3d 集群配置文件 `k3d-dev-config.yaml`:
 
-```bash
-cat > k3d-dev-config.yaml << 'EOF'
+```yaml
 apiVersion: k3d.io/v1alpha5
 kind: Simple
 metadata:
@@ -172,14 +171,16 @@ registries:
     name: dev-registry
     host: "0.0.0.0"
     hostPort: "5000"
-EOF
 ```
 
-> **说明**: k3s 默认包含 Traefik Ingress Controller，本配置保留 Traefik 以支持 Ingress 资源。
+> **说明**: k3s 默认包含 Traefik Ingress Controller，本配置保留 Traefik 以支持 Ingress 资源。同时创建本地容器镜像仓库。
 
 ### 2.2 创建集群
 
 ```bash
+# 进入项目目录
+cd /path/to/gitops-manifests
+
 # 创建 k3d 集群
 k3d cluster create --config k3d-dev-config.yaml
 
@@ -224,9 +225,14 @@ kubectl config current-context
 
 ### 3.1 使用 Kustomize 安装 ArgoCD
 
+本项目使用 ArgoCD v3.2.3，具有以下特性：
+- 资源跟踪方法使用 annotation（v3.x 默认）
+- 启用服务器端差异比对以提升性能
+- Kustomize 构建选项启用 Helm 支持
+
 ```bash
 # 进入项目目录
-cd /Users/leon/Data/Learning/gitops-manifests
+cd /path/to/gitops-manifests
 
 # 使用 dev overlay 安装 ArgoCD
 kubectl apply -k argocd/overlays/dev
@@ -254,6 +260,9 @@ kubectl get pods -n argocd
 
 # 检查 ArgoCD 服务
 kubectl get svc -n argocd
+
+# 检查 ArgoCD Ingress
+kubectl get ingress -n argocd
 ```
 
 ### 3.3 获取 ArgoCD 初始管理员密码
@@ -269,14 +278,20 @@ echo "ArgoCD 初始密码: $ARGOCD_PASSWORD"
 ### 3.4 配置 ArgoCD CLI
 
 ```bash
-# 端口转发 ArgoCD Server
+# 方式一：通过端口转发访问
 kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-
-# 等待端口转发就绪
 sleep 3
-
-# 登录 ArgoCD (使用 --insecure 因为 dev 环境使用自签名证书)
 argocd login localhost:8080 \
+  --username admin \
+  --password $ARGOCD_PASSWORD \
+  --insecure
+
+# 方式二：通过 Ingress 访问（需要配置 hosts）
+# 先添加 hosts 映射
+echo "127.0.0.1 argocd.dev.local" | sudo tee -a /etc/hosts
+
+# 然后登录
+argocd login argocd.dev.local \
   --username admin \
   --password $ARGOCD_PASSWORD \
   --insecure
@@ -294,35 +309,15 @@ argocd account list
 项目已配置使用以下 Git 仓库地址：
 
 ```
-git@github.com:0xByteLeon/gitops-manifests.git
+https://github.com/0xByteLeon/gitops-manifests.git
 ```
 
 > **注意**: 如果需要修改仓库地址，可以使用以下命令批量替换：
 > ```bash
-> find argocd/apps -name "*.yaml" -exec sed -i '' 's|0xByteLeon/gitops-manifests|YOUR_ORG/YOUR_REPO|g' {} \;
+> find argocd/apps -name "*.yaml" -exec sed -i 's|0xByteLeon/gitops-manifests|YOUR_ORG/YOUR_REPO|g' {} \;
 > ```
 
-### 4.2 更新集群 URL（适用于本地 k3d）
-
-对于本地 k3d 集群，需要更新 ArgoCD 应用中的目标集群 URL。
-
-```bash
-# 编辑 dev-apps.yaml
-# 将 destination.server 改为 https://kubernetes.default.svc
-
-# argocd/apps/dev-apps.yaml 中的以下行:
-#   server: https://dev-cluster.example.com
-# 改为:
-#   server: https://kubernetes.default.svc
-```
-
-或者使用以下脚本批量更新：
-
-```bash
-sed -i '' 's|https://dev-cluster.example.com|https://kubernetes.default.svc|g' argocd/apps/dev-apps.yaml
-```
-
-### 4.3 添加 Git 仓库到 ArgoCD
+### 4.2 添加 Git 仓库到 ArgoCD
 
 **方式一：使用 SSH（推荐）**
 ```bash
@@ -343,7 +338,7 @@ argocd repo add https://github.com/0xByteLeon/gitops-manifests.git \
 argocd repo add https://github.com/0xByteLeon/gitops-manifests.git
 ```
 
-### 4.4 添加 Helm 仓库
+### 4.3 添加 Helm 仓库
 
 ```bash
 # 添加 Grafana Helm 仓库
@@ -363,7 +358,24 @@ argocd repo list
 
 ## 五、部署应用
 
-### 5.1 部署 Root Application（App-of-Apps）
+### 5.1 项目结构说明
+
+本项目使用 **App-of-Apps** 模式和 **ApplicationSet** 实现自动化部署：
+
+```
+argocd/apps/
+├── root-app.yaml        # 根应用 - 引导所有其他应用
+├── argocd-self.yaml     # ArgoCD 自管理应用
+├── dev-apps.yaml        # Dev 环境 ApplicationSet
+├── qa-apps.yaml         # QA 环境 ApplicationSet
+└── prod-apps.yaml       # Prod 环境 ApplicationSet
+```
+
+**AppProject 定义**：
+- `platform`: 平台基础设施组件（LGTM 可观测性栈）
+- `apps`: 业务应用
+
+### 5.2 部署 Root Application
 
 ```bash
 # 应用 root-app，这将自动引导所有其他应用
@@ -373,19 +385,20 @@ kubectl apply -f argocd/apps/root-app.yaml
 argocd app get root-app
 ```
 
-### 5.2 手动部署 Dev 环境应用（可选）
+### 5.3 ApplicationSet 自动发现机制
 
-如果需要单独部署 dev 环境的应用：
+Dev 环境使用 ApplicationSet 自动发现和部署应用：
 
-```bash
-# 部署 dev 环境的所有应用
-kubectl apply -f argocd/apps/dev-apps.yaml
+**业务应用 (dev-apps)**:
+- 自动扫描 `apps/*/overlays/dev` 目录
+- 为每个发现的应用创建 ArgoCD Application
+- 部署到 `dev` 命名空间
 
-# 查看所有应用状态
-argocd app list
-```
+**平台组件 (dev-platform)**:
+- 自动扫描 `platform/*/overlays/dev` 目录
+- 每个组件部署到独立命名空间（prometheus, grafana, loki, tempo, opentelemetry）
 
-### 5.3 同步应用
+### 5.4 手动同步应用（可选）
 
 ```bash
 # 同步 root-app（将触发所有子应用同步）
@@ -400,7 +413,7 @@ argocd app sync tempo-dev
 argocd app sync otel-collector-dev
 ```
 
-### 5.4 等待同步完成
+### 5.5 等待同步完成
 
 ```bash
 # 等待所有应用同步完成
@@ -410,14 +423,30 @@ argocd app wait root-app --sync --timeout 600
 argocd app list
 
 # 预期输出:
-# NAME              CLUSTER                         NAMESPACE     PROJECT   STATUS  HEALTH   SYNCPOLICY  CONDITIONS
-# root-app          https://kubernetes.default.svc  argocd        default   Synced  Healthy  Auto-Prune  <none>
-# my-app-dev        https://kubernetes.default.svc  dev           apps      Synced  Healthy  Auto-Prune  <none>
-# prometheus-dev    https://kubernetes.default.svc  prometheus    platform  Synced  Healthy  Auto-Prune  <none>
-# grafana-dev       https://kubernetes.default.svc  grafana       platform  Synced  Healthy  Auto-Prune  <none>
-# loki-dev          https://kubernetes.default.svc  loki          platform  Synced  Healthy  Auto-Prune  <none>
-# tempo-dev         https://kubernetes.default.svc  tempo         platform  Synced  Healthy  Auto-Prune  <none>
-# otel-collector-dev https://kubernetes.default.svc opentelemetry platform  Synced  Healthy  Auto-Prune  <none>
+# NAME                CLUSTER                         NAMESPACE      PROJECT   STATUS  HEALTH   SYNCPOLICY
+# root-app            https://kubernetes.default.svc  argocd         default   Synced  Healthy  Auto-Prune
+# argocd              https://kubernetes.default.svc  argocd         default   Synced  Healthy  Auto-Prune
+# my-app-dev          https://kubernetes.default.svc  dev            apps      Synced  Healthy  Auto-Prune
+# prometheus-dev      https://kubernetes.default.svc  prometheus     platform  Synced  Healthy  Auto-Prune
+# grafana-dev         https://kubernetes.default.svc  grafana        platform  Synced  Healthy  Auto-Prune
+# loki-dev            https://kubernetes.default.svc  loki           platform  Synced  Healthy  Auto-Prune
+# tempo-dev           https://kubernetes.default.svc  tempo          platform  Synced  Healthy  Auto-Prune
+# otel-collector-dev  https://kubernetes.default.svc  opentelemetry  platform  Synced  Healthy  Auto-Prune
+```
+
+### 5.6 ArgoCD 自管理（可选）
+
+项目包含 `argocd-self.yaml`，支持 ArgoCD 自管理模式：
+
+```bash
+# ArgoCD 自管理已通过 root-app 自动部署
+# 验证 ArgoCD 自管理应用
+argocd app get argocd
+
+# 自管理的优势：
+# - ArgoCD 配置变更通过 GitOps 流程管理
+# - 版本升级可通过 Git 提交控制
+# - 配置变更可追溯和回滚
 ```
 
 ---
@@ -527,16 +556,25 @@ argocd app list --output wide
 
 ### 7.1 ArgoCD UI
 
+**方式一：通过 Ingress 访问（推荐）**
+
 ```bash
-# 方式一：端口转发
+# 添加 hosts 映射（如果尚未添加）
+echo "127.0.0.1 argocd.dev.local" | sudo tee -a /etc/hosts
+
+# 访问: http://argocd.dev.local
+# 用户名: admin
+# 密码: 使用之前获取的 ARGOCD_PASSWORD
+```
+
+**方式二：端口转发**
+
+```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443 &
 
 # 访问: https://localhost:8080
 # 用户名: admin
 # 密码: 使用之前获取的 ARGOCD_PASSWORD
-
-# 方式二：创建 NodePort 服务（可选）
-kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort"}}'
 ```
 
 ### 7.2 Grafana
@@ -625,7 +663,7 @@ echo ""
 echo "==========================================="
 echo "服务访问地址:"
 echo "==========================================="
-echo "ArgoCD:     https://localhost:8080"
+echo "ArgoCD:     https://localhost:8080 或 http://argocd.dev.local"
 echo "Grafana:    http://localhost:3000"
 echo "Prometheus: http://localhost:9090"
 echo "Loki:       http://localhost:3100/ready"
@@ -677,9 +715,9 @@ argocd app refresh <app-name>
 #### 问题 3: Helm Chart 渲染失败
 
 ```bash
-# 本地测试 Kustomize 渲染
+# 本地测试 Kustomize 渲染（需要启用 Helm）
 cd apps/my-app/overlays/dev
-kustomize build .
+kustomize build --enable-helm --load-restrictor=LoadRestrictionsNone .
 
 # 检查 Helm values 文件语法
 helm template my-app ../../base -f values-dev.yaml
@@ -699,6 +737,20 @@ argocd repo rm <repo-url>
 argocd repo add <repo-url> --username <user> --password <token>
 ```
 
+#### 问题 5: ApplicationSet 未生成应用
+
+```bash
+# 检查 ApplicationSet 状态
+kubectl get applicationset -n argocd
+
+# 查看 ApplicationSet 详情
+kubectl describe applicationset dev-apps -n argocd
+kubectl describe applicationset dev-platform -n argocd
+
+# 检查 ApplicationSet Controller 日志
+kubectl logs -n argocd -l app.kubernetes.io/name=argocd-applicationset-controller --tail=50
+```
+
 ### 8.2 日志查看
 
 ```bash
@@ -706,6 +758,7 @@ argocd repo add <repo-url> --username <user> --password <token>
 kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server --tail=100
 kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller --tail=100
 kubectl logs -n argocd -l app.kubernetes.io/name=argocd-repo-server --tail=100
+kubectl logs -n argocd -l app.kubernetes.io/name=argocd-applicationset-controller --tail=100
 
 # 应用日志
 kubectl logs -n dev -l app.kubernetes.io/name=my-app --tail=100
@@ -742,6 +795,7 @@ argocd app delete root-app --cascade
 
 # 或者强制删除
 kubectl delete application --all -n argocd
+kubectl delete applicationset --all -n argocd
 ```
 
 ### 9.2 删除 ArgoCD
@@ -781,14 +835,15 @@ docker system prune -a
 
 ### A. 组件版本参考
 
-| 组件 | Helm Chart 版本 | 命名空间 |
-|------|----------------|----------|
-| ArgoCD | v2.9.3 | argocd |
-| Prometheus Stack | 80.13.0 | prometheus |
-| Grafana | 10.5.3 | grafana |
-| Loki | 6.49.0 | loki |
-| Tempo | 1.24.1 | tempo |
-| OpenTelemetry Collector | 0.142.2 | opentelemetry |
+| 组件 | Helm Chart 版本 | 命名空间 | 说明 |
+|------|----------------|----------|------|
+| ArgoCD | v3.2.3 | argocd | GitOps 引擎 |
+| Prometheus Stack | 80.13.0 | prometheus | 监控指标收集 |
+| Prometheus Operator CRDs | 25.0.1 | prometheus | CRD 定义 |
+| Grafana | 10.5.3 | grafana | 可视化仪表板 |
+| Loki | 6.49.0 | loki | 日志聚合 |
+| Tempo | 1.24.1 | tempo | 分布式追踪 |
+| OpenTelemetry Collector | 0.142.2 | opentelemetry | 遥测数据收集 |
 
 ### B. 端口映射参考
 
@@ -807,11 +862,12 @@ Dev 环境使用 k3s 默认的 Traefik Ingress Controller。
 
 | 服务 | 域名 | 备注 |
 |------|------|------|
+| ArgoCD | argocd.dev.local | HTTP 访问（dev 环境启用 insecure 模式）|
 | my-app | my-app.dev.local | 需要添加 hosts 配置 |
 
 ```bash
 # 添加本地 hosts 映射
-echo "127.0.0.1 my-app.dev.local" | sudo tee -a /etc/hosts
+echo "127.0.0.1 argocd.dev.local my-app.dev.local" | sudo tee -a /etc/hosts
 ```
 
 ### D. 有用的命令速查
@@ -867,12 +923,36 @@ OTel Collector (opentelemetry namespace)
 http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317
 ```
 
+### F. ArgoCD 配置说明
+
+本项目 ArgoCD 配置特点：
+
+1. **Kustomize 构建选项**:
+   ```yaml
+   kustomize.buildOptions: --enable-helm --load-restrictor=LoadRestrictionsNone
+   ```
+   - `--enable-helm`: 允许 Kustomize 处理 Helm Chart
+   - `--load-restrictor=LoadRestrictionsNone`: 允许加载 overlay 目录外的文件
+
+2. **资源跟踪方法**: 使用 annotation（v3.x 默认）
+
+3. **服务器端差异比对**: 启用以提升大规模部署的性能
+
+4. **自管理模式**: 通过 `argocd-self.yaml` 实现 ArgoCD 自身的 GitOps 管理
+
+### G. AppProject 权限说明
+
+| Project | 源仓库 | 目标命名空间 | 用途 |
+|---------|-------|-------------|------|
+| platform | gitops-manifests, helm charts | prometheus, grafana, loki, tempo, opentelemetry | 平台基础设施 |
+| apps | gitops-manifests | dev, qa, prod | 业务应用 |
+
 ---
 
 ## 更新日志
 
 | 日期 | 版本 | 更新内容 |
 |------|------|---------|
+| 2026-01-09 | 1.2.0 | ArgoCD 升级至 v3.2.3、添加 ApplicationSet 说明、更新 ArgoCD 自管理配置、更新所有组件版本 |
 | 2026-01-08 | 1.1.0 | 更新命名空间结构（每组件独立命名空间）、更新 Helm Chart 版本、添加 Ingress 配置说明 |
 | 2026-01-07 | 1.0.0 | 初始版本 |
-
