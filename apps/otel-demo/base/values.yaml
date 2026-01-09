@@ -145,9 +145,12 @@ components:
       limits:
         memory: 128Mi
 
-  # Kafka
+  # Kafka (checkoutService 依赖)
   kafka:
-    enabled: false
+    enabled: true
+    resources:
+      limits:
+        memory: 512Mi
 
   # Valkey (Redis 替代，用于购物车存储)
   valkey:
