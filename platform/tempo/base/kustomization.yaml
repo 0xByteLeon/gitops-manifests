@@ -5,6 +5,7 @@ namespace: tempo
 
 resources:
   - namespace.yaml
+  - networkpolicy.yaml
 
 # Tempo Helm Chart
 helmCharts:

@@ -3,22 +3,27 @@ kind: Kustomization
 
 namespace: prod
 
+# pdb.yaml needs to be a separate resource (not from base)
 resources:
-  - ../../base
   - pdb.yaml
 
-# Production environment common labels
-commonLabels:
-  environment: prod
+labels:
+  - pairs:
+      environment: prod
+      app.kubernetes.io/part-of: my-app
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
 
-# Generate resources from Helm chart with prod values
+helmGlobals:
+  chartHome: ../..
+
 helmCharts:
-  - name: my-app
+  - name: base
     releaseName: my-app
     namespace: prod
-    valuesFile: values-prod.yaml
+    valuesFile: ../../base/values.yaml
     additionalValuesFiles:
-      - ../../base/values.yaml
+      - values-prod.yaml
 
 # Production-specific patches
 patches:
@@ -33,4 +38,3 @@ patches:
   
   # Add pod anti-affinity for HA
   - path: patches/deployment-ha.yaml
-

@@ -3,21 +3,25 @@ kind: Kustomization
 
 namespace: qa
 
-resources:
-  - ../../base
+# Don't include ../../base as resource (avoid duplicate helmCharts)
 
-# QA environment common labels
-commonLabels:
-  environment: qa
+labels:
+  - pairs:
+      environment: qa
+      app.kubernetes.io/part-of: my-app
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
 
-# Generate resources from Helm chart with QA values
+helmGlobals:
+  chartHome: ../..
+
 helmCharts:
-  - name: my-app
+  - name: base
     releaseName: my-app
     namespace: qa
-    valuesFile: values-qa.yaml
+    valuesFile: ../../base/values.yaml
     additionalValuesFiles:
-      - ../../base/values.yaml
+      - values-qa.yaml
 
 # QA-specific patches
 patches:
@@ -29,4 +33,3 @@ patches:
     target:
       kind: Deployment
       name: my-app
-

@@ -5,6 +5,8 @@ namespace: prometheus
 
 resources:
   - namespace.yaml
+  - networkpolicy.yaml
+  - pdb.yaml
 
 # Prometheus Stack Helm Chart (includes Prometheus, Alertmanager, Grafana, etc.)
 helmCharts:

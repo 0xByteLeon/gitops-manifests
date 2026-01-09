@@ -35,6 +35,10 @@ data:
     p, role:qa, applications, sync, qa/*, allow
     p, role:qa, logs, get, qa/*, allow
     
+    # Production operators can view applications in prod namespace (no sync - manual only)
+    p, role:prod-operator, applications, get, prod/*, allow
+    p, role:prod-operator, logs, get, prod/*, allow
+    
     # Readonly role for viewing all applications
     p, role:readonly, applications, get, */*, allow
     p, role:readonly, applicationsets, get, */*, allow
@@ -48,4 +52,5 @@ data:
     g, admins, role:admin
     g, developers, role:developer
     g, qa-team, role:qa
+    g, prod-team, role:prod-operator
 

@@ -147,6 +147,7 @@ config:
       logs:
         receivers:
           - otlp
+          - filelog  # Collect container logs via logsCollection preset
         processors:
           - memory_limiter
           - batch

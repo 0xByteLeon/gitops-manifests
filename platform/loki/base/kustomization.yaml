@@ -5,6 +5,8 @@ namespace: loki
 
 resources:
   - namespace.yaml
+  - networkpolicy.yaml
+  - pdb.yaml
 
 # Loki Helm Chart (using loki-stack or loki)
 helmCharts:

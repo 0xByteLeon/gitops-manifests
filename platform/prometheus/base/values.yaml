@@ -83,9 +83,21 @@ alertmanager:
     
     receivers:
       - name: 'default-receiver'
-        # Configure webhook, email, slack, etc.
+        # Default receiver - configure based on your notification needs
+        # Example: webhook, email, slack, pagerduty, etc.
+        webhook_configs:
+          - url: 'http://alertmanager-webhook.monitoring.svc:8080/webhook'
+            send_resolved: true
       - name: 'critical-receiver'
+        # Critical alerts - high priority notifications
+        webhook_configs:
+          - url: 'http://alertmanager-webhook.monitoring.svc:8080/critical'
+            send_resolved: true
       - name: 'warning-receiver'
+        # Warning alerts - lower priority notifications
+        webhook_configs:
+          - url: 'http://alertmanager-webhook.monitoring.svc:8080/warning'
+            send_resolved: true
 
 # Grafana - disabled as we deploy it separately
 grafana:

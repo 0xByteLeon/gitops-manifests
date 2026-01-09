@@ -92,6 +92,15 @@ spec:
         # Namespace is defined in each component's kustomization.yaml
         namespace: "{{path[1]}}"
       
+      # Ignore Kubernetes API server auto-injected fields
+      # These fields are added by K8s and cause false OutOfSync status
+      ignoreDifferences:
+        - group: apps
+          kind: StatefulSet
+          jsonPointers:
+            - /spec/volumeClaimTemplates/0/apiVersion
+            - /spec/volumeClaimTemplates/0/kind
+      
       # Production: Manual sync for platform components
       syncPolicy:
         syncOptions:

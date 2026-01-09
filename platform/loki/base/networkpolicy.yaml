@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: loki-network-policy
+  namespace: loki
+  labels:
+    app.kubernetes.io/part-of: observability
+    app.kubernetes.io/component: logging
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from Grafana namespace for log queries
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: grafana
+      ports:
+        - protocol: TCP
+          port: 3100
+        - protocol: TCP
+          port: 80  # Gateway
+    # Allow from OpenTelemetry namespace for log ingestion
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: opentelemetry
+      ports:
+        - protocol: TCP
+          port: 3100
+    # Allow from same namespace (loki components)
+    - from:
+        - podSelector: {}
