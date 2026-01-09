@@ -1,7 +1,6 @@
-# ArgoCD Projects 定义
-# 通过 root-app GitOps 管理
+# Dev 环境 ArgoCD Projects
 ---
-# ArgoCD Project for platform infrastructure
+# Platform infrastructure project
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -9,6 +8,7 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: gitops
+    environment: dev
 spec:
   description: Platform infrastructure components (LGTM observability stack)
   
@@ -18,20 +18,19 @@ spec:
     - https://prometheus-community.github.io/helm-charts
     - https://open-telemetry.github.io/opentelemetry-helm-charts
   
-  # Each platform component has its own namespace
   destinations:
     - namespace: prometheus
-      server: "*"
+      server: https://kubernetes.default.svc
     - namespace: grafana
-      server: "*"
+      server: https://kubernetes.default.svc
     - namespace: loki
-      server: "*"
+      server: https://kubernetes.default.svc
     - namespace: tempo
-      server: "*"
+      server: https://kubernetes.default.svc
     - namespace: opentelemetry
-      server: "*"
+      server: https://kubernetes.default.svc
     - namespace: otel-collector
-      server: "*"
+      server: https://kubernetes.default.svc
   
   clusterResourceWhitelist:
     - group: ""
@@ -51,7 +50,7 @@ spec:
     - group: "*"
       kind: "*"
 ---
-# ArgoCD Project for business applications
+# Business applications project
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -59,8 +58,9 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: gitops
+    environment: dev
 spec:
-  description: Business applications
+  description: Business applications for Dev environment
   
   sourceRepos:
     - https://github.com/0xByteLeon/gitops-manifests.git
@@ -68,15 +68,11 @@ spec:
   
   destinations:
     - namespace: dev
-      server: "*"
-    - namespace: qa
-      server: "*"
-    - namespace: prod
-      server: "*"
+      server: https://kubernetes.default.svc
     - namespace: otel-demo
-      server: "*"
+      server: https://kubernetes.default.svc
     - namespace: my-app
-      server: "*"
+      server: https://kubernetes.default.svc
   
   clusterResourceWhitelist:
     - group: ""

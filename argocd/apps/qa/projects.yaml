@@ -1,0 +1,81 @@
+# QA 环境 ArgoCD Projects
+---
+# Platform infrastructure project
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: gitops
+    environment: qa
+spec:
+  description: Platform infrastructure components (LGTM observability stack)
+  
+  sourceRepos:
+    - https://github.com/0xByteLeon/gitops-manifests.git
+    - https://grafana.github.io/helm-charts
+    - https://prometheus-community.github.io/helm-charts
+    - https://open-telemetry.github.io/opentelemetry-helm-charts
+  
+  destinations:
+    - namespace: prometheus
+      server: https://kubernetes.default.svc
+    - namespace: grafana
+      server: https://kubernetes.default.svc
+    - namespace: loki
+      server: https://kubernetes.default.svc
+    - namespace: tempo
+      server: https://kubernetes.default.svc
+    - namespace: opentelemetry
+      server: https://kubernetes.default.svc
+    - namespace: otel-collector
+      server: https://kubernetes.default.svc
+  
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+  
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+# Business applications project
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: gitops
+    environment: qa
+spec:
+  description: Business applications for QA environment
+  
+  sourceRepos:
+    - https://github.com/0xByteLeon/gitops-manifests.git
+    - https://open-telemetry.github.io/opentelemetry-helm-charts
+  
+  destinations:
+    - namespace: qa
+      server: https://kubernetes.default.svc
+    - namespace: my-app
+      server: https://kubernetes.default.svc
+  
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

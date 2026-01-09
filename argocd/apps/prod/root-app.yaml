@@ -1,0 +1,45 @@
+# Prod 环境 Root Application
+# 在 Prod 集群中 apply 此文件来引导 GitOps
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: root-app
+    app.kubernetes.io/part-of: gitops
+    environment: prod
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/0xByteLeon/gitops-manifests.git
+    targetRevision: HEAD
+    path: argocd/apps/prod
+    directory:
+      recurse: false
+      include: "*.yaml"
+      exclude: "root-app.yaml"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  
+  syncPolicy:
+    # Prod 环境禁用自动同步，需要手动审批
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

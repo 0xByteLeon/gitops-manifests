@@ -1,3 +1,6 @@
+# Dev 环境 ApplicationSets
+---
+# Business applications for Dev
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -8,7 +11,6 @@ metadata:
     app.kubernetes.io/part-of: gitops
 spec:
   generators:
-    # Generate applications for all directories in apps/*/overlays/dev
     - git:
         repoURL: https://github.com/0xByteLeon/gitops-manifests.git
         revision: HEAD
@@ -31,9 +33,7 @@ spec:
         path: "{{path}}"
       
       destination:
-        # Dev cluster - update with actual cluster URL
         server: https://kubernetes.default.svc
-        # 命名空间由各应用的 kustomization.yaml 定义
         namespace: dev
       
       syncPolicy:
@@ -50,8 +50,7 @@ spec:
             factor: 2
             maxDuration: 1m
 ---
-# Platform apps for Dev environment
-# Each component deploys to its own namespace (defined in kustomization.yaml)
+# Platform components for Dev
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -86,11 +85,8 @@ spec:
       
       destination:
         server: https://kubernetes.default.svc
-        # Namespace is defined in each component's kustomization.yaml
-        # prometheus -> prometheus, grafana -> grafana, etc.
         namespace: "{{path[1]}}"
       
-      # Ignore differences that Kubernetes adds automatically
       ignoreDifferences:
         - group: apps
           kind: StatefulSet
@@ -112,4 +108,3 @@ spec:
             duration: 10s
             factor: 2
             maxDuration: 3m
-

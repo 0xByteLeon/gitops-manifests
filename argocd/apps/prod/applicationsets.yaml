@@ -1,26 +1,28 @@
+# Prod 环境 ApplicationSets
+---
+# Business applications for Prod
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: qa-apps
+  name: prod-apps
   namespace: argocd
   labels:
-    environment: qa
+    environment: prod
     app.kubernetes.io/part-of: gitops
 spec:
   generators:
-    # Generate applications for all directories in apps/*/overlays/qa
     - git:
         repoURL: https://github.com/0xByteLeon/gitops-manifests.git
         revision: HEAD
         directories:
-          - path: apps/*/overlays/qa
+          - path: apps/*/overlays/prod
   
   template:
     metadata:
-      name: "{{path[1]}}-qa"
+      name: "{{path[1]}}-prod"
       namespace: argocd
       labels:
-        environment: qa
+        environment: prod
         app: "{{path[1]}}"
     spec:
       project: apps
@@ -31,11 +33,11 @@ spec:
         path: "{{path}}"
       
       destination:
-        # QA cluster - update with actual cluster URL
-        server: https://qa-cluster.example.com
-        namespace: qa
+        server: https://kubernetes.default.svc
+        namespace: prod
       
       syncPolicy:
+        # Prod 环境：自动同步但更保守的重试策略
         automated:
           prune: true
           selfHeal: true
@@ -43,21 +45,20 @@ spec:
           - CreateNamespace=true
           - ApplyOutOfSyncOnly=true
         retry:
-          limit: 3
+          limit: 5
           backoff:
-            duration: 5s
+            duration: 10s
             factor: 2
-            maxDuration: 1m
+            maxDuration: 5m
 ---
-# Platform apps for QA environment
-# Each component deploys to its own namespace (defined in kustomization.yaml)
+# Platform components for Prod
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: qa-platform
+  name: prod-platform
   namespace: argocd
   labels:
-    environment: qa
+    environment: prod
     app.kubernetes.io/part-of: gitops
 spec:
   generators:
@@ -65,14 +66,14 @@ spec:
         repoURL: https://github.com/0xByteLeon/gitops-manifests.git
         revision: HEAD
         directories:
-          - path: platform/*/overlays/qa
+          - path: platform/*/overlays/prod
   
   template:
     metadata:
-      name: "{{path[1]}}-qa"
+      name: "{{path[1]}}-prod"
       namespace: argocd
       labels:
-        environment: qa
+        environment: prod
         component: platform
         app: "{{path[1]}}"
     spec:
@@ -84,12 +85,9 @@ spec:
         path: "{{path}}"
       
       destination:
-        server: https://qa-cluster.example.com
-        # Namespace is defined in each component's kustomization.yaml
+        server: https://kubernetes.default.svc
         namespace: "{{path[1]}}"
       
-      # Ignore Kubernetes API server auto-injected fields
-      # These fields are added by K8s and cause false OutOfSync status
       ignoreDifferences:
         - group: apps
           kind: StatefulSet
@@ -104,10 +102,10 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          - SkipDryRunOnMissingResource=true
         retry:
-          limit: 3
+          limit: 5
           backoff:
-            duration: 5s
+            duration: 10s
             factor: 2
-            maxDuration: 1m
-
+            maxDuration: 5m

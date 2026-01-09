@@ -1,3 +1,5 @@
+# Dev 环境 Root Application
+# 在 Dev 集群中 apply 此文件来引导 GitOps
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,6 +8,7 @@ metadata:
   labels:
     app.kubernetes.io/name: root-app
     app.kubernetes.io/part-of: gitops
+    environment: dev
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -14,7 +17,7 @@ spec:
   source:
     repoURL: https://github.com/0xByteLeon/gitops-manifests.git
     targetRevision: HEAD
-    path: argocd/apps
+    path: argocd/apps/dev
     directory:
       recurse: false
       include: "*.yaml"

@@ -1,0 +1,44 @@
+# QA 环境 Root Application
+# 在 QA 集群中 apply 此文件来引导 GitOps
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: root-app
+    app.kubernetes.io/part-of: gitops
+    environment: qa
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/0xByteLeon/gitops-manifests.git
+    targetRevision: HEAD
+    path: argocd/apps/qa
+    directory:
+      recurse: false
+      include: "*.yaml"
+      exclude: "root-app.yaml"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
