@@ -84,6 +84,26 @@ config:
         - key: cluster
           value: "dev"
           action: upsert
+    
+    # 从 K8s 元数据推断 service.name，解决 unknown_service 问题
+    transform/service_name:
+      error_mode: ignore
+      log_statements:
+        - context: resource
+          statements:
+            # 如果 service.name 缺失或为 unknown_service，从 k8s.deployment.name 推断
+            - set(attributes["service.name"], attributes["k8s.deployment.name"]) where attributes["service.name"] == nil
+            - set(attributes["service.name"], attributes["k8s.deployment.name"]) where IsMatch(attributes["service.name"], "^unknown_service.*")
+      metric_statements:
+        - context: resource
+          statements:
+            - set(attributes["service.name"], attributes["k8s.deployment.name"]) where attributes["service.name"] == nil
+            - set(attributes["service.name"], attributes["k8s.deployment.name"]) where IsMatch(attributes["service.name"], "^unknown_service.*")
+      trace_statements:
+        - context: resource
+          statements:
+            - set(attributes["service.name"], attributes["k8s.deployment.name"]) where attributes["service.name"] == nil
+            - set(attributes["service.name"], attributes["k8s.deployment.name"]) where IsMatch(attributes["service.name"], "^unknown_service.*")
 
   exporters:
     # Prometheus remote write for metrics (cross-namespace)
@@ -130,6 +150,7 @@ config:
           - otlp
         processors:
           - memory_limiter
+          - transform/service_name
           - batch
           - resource
         exporters:
@@ -141,6 +162,7 @@ config:
           - prometheus
         processors:
           - memory_limiter
+          - transform/service_name
           - batch
           - resource
         exporters:
@@ -152,6 +174,7 @@ config:
           - filelog  # Collect container logs via logsCollection preset
         processors:
           - memory_limiter
+          - transform/service_name
           - batch
         exporters:
           - otlphttp/loki
