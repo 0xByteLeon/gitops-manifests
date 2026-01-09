@@ -358,32 +358,54 @@ argocd repo list
 
 ## 五、部署应用
 
-### 5.1 项目结构说明
+### 5.1 项目结构说明（多集群架构）
 
-本项目使用 **App-of-Apps** 模式和 **ApplicationSet** 实现自动化部署：
+本项目采用**多集群 GitOps 架构**，每个环境（Dev/QA/Prod）对应独立的 Kubernetes 集群，各集群有独立的 root-app 配置：
 
 ```
 argocd/apps/
-├── root-app.yaml        # 根应用 - 引导所有其他应用
-├── argocd-self.yaml     # ArgoCD 自管理应用
-├── dev-apps.yaml        # Dev 环境 ApplicationSet
-├── qa-apps.yaml         # QA 环境 ApplicationSet
-└── prod-apps.yaml       # Prod 环境 ApplicationSet
+├── dev/                          # Dev 集群专用配置
+│   ├── root-app.yaml            # Dev 环境引导文件
+│   ├── projects.yaml            # Dev 环境 AppProjects
+│   ├── applicationsets.yaml     # Dev 环境 ApplicationSets
+│   └── argocd-self.yaml         # ArgoCD 自管理
+│
+├── qa/                           # QA 集群专用配置
+│   ├── root-app.yaml
+│   ├── projects.yaml
+│   ├── applicationsets.yaml
+│   └── argocd-self.yaml
+│
+└── prod/                         # Prod 集群专用配置
+    ├── root-app.yaml
+    ├── projects.yaml
+    ├── applicationsets.yaml
+    └── argocd-self.yaml
 ```
 
-**AppProject 定义**：
+**每个环境的 root-app 只管理该环境的资源**：
+
+| 环境 | root-app 路径 | 管理的资源 |
+|------|--------------|-----------|
+| Dev | `argocd/apps/dev/` | dev-apps, dev-platform, ArgoCD 自管理 |
+| QA | `argocd/apps/qa/` | qa-apps, qa-platform, ArgoCD 自管理 |
+| Prod | `argocd/apps/prod/` | prod-apps, prod-platform, ArgoCD 自管理 |
+
+**AppProject 定义**（每个环境独立）：
 - `platform`: 平台基础设施组件（LGTM 可观测性栈）
 - `apps`: 业务应用
 
-### 5.2 部署 Root Application
+### 5.2 部署 Dev 环境 Root Application
 
 ```bash
-# 应用 root-app，这将自动引导所有其他应用
-kubectl apply -f argocd/apps/root-app.yaml
+# 应用 Dev 环境的 root-app（仅需执行一次）
+kubectl apply -f argocd/apps/dev/root-app.yaml
 
 # 验证 root-app 创建成功
 argocd app get root-app
 ```
+
+> **重要**: 这是唯一需要手动执行的 `kubectl apply` 命令。之后所有变更都通过 Git 提交自动同步。
 
 ### 5.3 ApplicationSet 自动发现机制
 
@@ -392,13 +414,29 @@ Dev 环境使用 ApplicationSet 自动发现和部署应用：
 **业务应用 (dev-apps)**:
 - 自动扫描 `apps/*/overlays/dev` 目录
 - 为每个发现的应用创建 ArgoCD Application
-- 部署到 `dev` 命名空间
+- 部署到相应命名空间
 
 **平台组件 (dev-platform)**:
 - 自动扫描 `platform/*/overlays/dev` 目录
 - 每个组件部署到独立命名空间（prometheus, grafana, loki, tempo, opentelemetry）
 
-### 5.4 手动同步应用（可选）
+### 5.4 root-app 管理的资源
+
+Dev 集群的 root-app 会自动同步以下资源：
+
+```bash
+# 查看 root-app 管理的所有资源
+argocd app get root-app --show-operation
+
+# 预期管理的资源：
+# - AppProject: apps (业务应用项目)
+# - AppProject: platform (平台组件项目)
+# - Application: argocd (ArgoCD 自管理)
+# - ApplicationSet: dev-apps (业务应用)
+# - ApplicationSet: dev-platform (平台组件)
+```
+
+### 5.5 手动同步应用（可选）
 
 ```bash
 # 同步 root-app（将触发所有子应用同步）
@@ -406,6 +444,7 @@ argocd app sync root-app
 
 # 或者单独同步特定应用
 argocd app sync my-app-dev
+argocd app sync otel-demo-dev
 argocd app sync prometheus-dev
 argocd app sync grafana-dev
 argocd app sync loki-dev
@@ -413,7 +452,7 @@ argocd app sync tempo-dev
 argocd app sync otel-collector-dev
 ```
 
-### 5.5 等待同步完成
+### 5.6 等待同步完成
 
 ```bash
 # 等待所有应用同步完成
@@ -427,6 +466,7 @@ argocd app list
 # root-app            https://kubernetes.default.svc  argocd         default   Synced  Healthy  Auto-Prune
 # argocd              https://kubernetes.default.svc  argocd         default   Synced  Healthy  Auto-Prune
 # my-app-dev          https://kubernetes.default.svc  dev            apps      Synced  Healthy  Auto-Prune
+# otel-demo-dev       https://kubernetes.default.svc  otel-demo      apps      Synced  Healthy  Auto-Prune
 # prometheus-dev      https://kubernetes.default.svc  prometheus     platform  Synced  Healthy  Auto-Prune
 # grafana-dev         https://kubernetes.default.svc  grafana        platform  Synced  Healthy  Auto-Prune
 # loki-dev            https://kubernetes.default.svc  loki           platform  Synced  Healthy  Auto-Prune
@@ -434,12 +474,11 @@ argocd app list
 # otel-collector-dev  https://kubernetes.default.svc  opentelemetry  platform  Synced  Healthy  Auto-Prune
 ```
 
-### 5.6 ArgoCD 自管理（可选）
+### 5.7 ArgoCD 自管理
 
-项目包含 `argocd-self.yaml`，支持 ArgoCD 自管理模式：
+ArgoCD 自管理通过 root-app 自动部署：
 
 ```bash
-# ArgoCD 自管理已通过 root-app 自动部署
 # 验证 ArgoCD 自管理应用
 argocd app get argocd
 
@@ -461,7 +500,8 @@ kubectl get namespaces
 
 # 预期应包含以下命名空间:
 # - argocd        (ArgoCD 组件)
-# - dev           (业务应用)
+# - dev           (业务应用 - my-app)
+# - otel-demo     (OpenTelemetry Demo 微服务)
 # - prometheus    (Prometheus 监控)
 # - grafana       (Grafana 可视化)
 # - loki          (日志存储)
@@ -469,20 +509,23 @@ kubectl get namespaces
 # - opentelemetry (OTel Collector)
 ```
 
-### 6.2 检查 Dev 命名空间中的工作负载
+### 6.2 检查业务应用命名空间
 
 ```bash
-# 检查 dev 命名空间中的所有资源
+# 检查 dev 命名空间中的资源 (my-app)
 kubectl get all -n dev
 
-# 检查 Pod 状态
-kubectl get pods -n dev -o wide
+# 检查 otel-demo 命名空间中的资源 (OpenTelemetry Demo 微服务)
+kubectl get pods -n otel-demo
 
-# 检查 Deployment
-kubectl get deployments -n dev
-
-# 检查 Service
-kubectl get svc -n dev
+# 预期 otel-demo 包含多个微服务:
+# - frontend, frontendproxy
+# - cartservice, checkoutservice
+# - productcatalogservice, recommendationservice
+# - currencyservice, emailservice, paymentservice, shippingservice
+# - adservice, quoteservice
+# - loadgenerator (自动生成流量)
+# - valkey (Redis 替代), flagd
 ```
 
 ### 6.3 检查各平台组件命名空间中的工作负载
@@ -619,17 +662,30 @@ kubectl port-forward svc/tempo -n tempo 3200:3200 &
 ### 7.6 应用服务
 
 ```bash
-# 端口转发应用服务 (my-app 使用 nginx 镜像)
+# 端口转发 my-app (nginx)
 kubectl port-forward svc/my-app -n dev 8888:80 &
 
 # 访问: http://localhost:8888
 
-# 或通过 Ingress 访问 (需要配置 hosts 文件)
-# 添加到 /etc/hosts: 127.0.0.1 my-app.dev.local
-# 然后访问: http://my-app.dev.local
+# 端口转发 otel-demo 前端
+kubectl port-forward svc/otel-demo-frontendproxy -n otel-demo 8080:8080 &
+
+# 访问: http://localhost:8080
 ```
 
-### 7.7 创建便捷访问脚本
+### 7.7 查看链路追踪
+
+otel-demo 应用会自动生成流量和 Trace 数据，可以在 Grafana 中查看：
+
+1. 访问 Grafana: http://localhost:3000
+2. 进入 **Explore** 页面
+3. 选择数据源 **Tempo**
+4. 使用以下方式查看链路追踪：
+   - **Service Graph**: 查看微服务拓扑图
+   - **Search**: 搜索具体的 Trace
+   - 点击任意 Trace 查看 **Node Graph** 和 **Timeline**
+
+### 7.8 创建便捷访问脚本
 
 创建一个脚本来启动所有端口转发：
 
@@ -659,6 +715,9 @@ kubectl port-forward svc/tempo -n tempo 3200:3200 &
 echo "启动 my-app 端口转发 (8888)..."
 kubectl port-forward svc/my-app -n dev 8888:80 &
 
+echo "启动 otel-demo 端口转发 (8081)..."
+kubectl port-forward svc/otel-demo-frontendproxy -n otel-demo 8081:8080 &
+
 echo ""
 echo "==========================================="
 echo "服务访问地址:"
@@ -669,6 +728,7 @@ echo "Prometheus: http://localhost:9090"
 echo "Loki:       http://localhost:3100/ready"
 echo "Tempo:      http://localhost:3200/ready"
 echo "my-app:     http://localhost:8888"
+echo "otel-demo:  http://localhost:8081"
 echo "==========================================="
 echo ""
 echo "按 Ctrl+C 停止所有端口转发"
@@ -751,6 +811,19 @@ kubectl describe applicationset dev-platform -n argocd
 kubectl logs -n argocd -l app.kubernetes.io/name=argocd-applicationset-controller --tail=50
 ```
 
+#### 问题 6: AppProject 权限错误
+
+```bash
+# 检查 AppProject 配置
+kubectl get appproject -n argocd
+
+# 查看 AppProject 详情
+kubectl get appproject apps -n argocd -o yaml
+kubectl get appproject platform -n argocd -o yaml
+
+# 如果需要添加新的命名空间权限，修改 argocd/apps/dev/projects.yaml 并提交
+```
+
 ### 8.2 日志查看
 
 ```bash
@@ -762,6 +835,7 @@ kubectl logs -n argocd -l app.kubernetes.io/name=argocd-applicationset-controlle
 
 # 应用日志
 kubectl logs -n dev -l app.kubernetes.io/name=my-app --tail=100
+kubectl logs -n otel-demo -l app.kubernetes.io/component=frontend --tail=100
 
 # 监控组件日志
 kubectl logs -n prometheus -l app.kubernetes.io/name=prometheus --tail=100
@@ -776,11 +850,16 @@ kubectl logs -n opentelemetry -l app.kubernetes.io/name=opentelemetry-collector 
 ```bash
 # 删除并重新创建单个应用
 argocd app delete <app-name> --cascade
-kubectl apply -f argocd/apps/<app-file>.yaml
+argocd app sync root-app
+
+# 完全重置 ArgoCD 应用（保留 ArgoCD 本身）
+argocd app delete root-app --cascade
+kubectl apply -f argocd/apps/dev/root-app.yaml
 
 # 完全重置 ArgoCD
 kubectl delete -k argocd/overlays/dev
 kubectl apply -k argocd/overlays/dev
+kubectl apply -f argocd/apps/dev/root-app.yaml
 ```
 
 ---
@@ -796,6 +875,7 @@ argocd app delete root-app --cascade
 # 或者强制删除
 kubectl delete application --all -n argocd
 kubectl delete applicationset --all -n argocd
+kubectl delete appproject apps platform -n argocd
 ```
 
 ### 9.2 删除 ArgoCD
@@ -844,6 +924,7 @@ docker system prune -a
 | Loki | 6.49.0 | loki | 日志聚合 |
 | Tempo | 1.24.1 | tempo | 分布式追踪 |
 | OpenTelemetry Collector | 0.142.2 | opentelemetry | 遥测数据收集 |
+| OpenTelemetry Demo | 0.32.8 | otel-demo | 微服务示例应用 |
 
 ### B. 端口映射参考
 
@@ -855,6 +936,7 @@ docker system prune -a
 | Loki | 3100 | loki | 日志查询 |
 | Tempo | 3200 | tempo | 链路追踪 |
 | my-app | 8888 | dev | 业务应用 |
+| otel-demo | 8081 | otel-demo | 微服务示例 |
 
 ### C. Ingress 配置
 
@@ -894,7 +976,7 @@ argocd app get <app-name>
 argocd app list -o name | xargs -I {} argocd app refresh {}
 
 # 快速检查所有平台组件状态
-for ns in argocd dev prometheus grafana loki tempo opentelemetry; do
+for ns in argocd dev otel-demo prometheus grafana loki tempo opentelemetry; do
   echo "=== $ns ===" && kubectl get pods -n $ns --no-headers 2>/dev/null || echo "命名空间不存在"
 done
 ```
@@ -904,7 +986,7 @@ done
 应用通过 OpenTelemetry Collector 发送遥测数据：
 
 ```
-应用 (dev namespace)
+应用 (dev/otel-demo namespace)
     │
     │ OTLP (gRPC :4317)
     ▼
@@ -916,6 +998,9 @@ OTel Collector (opentelemetry namespace)
                     │
                     ▼
                Grafana (grafana namespace)
+                 ├── Service Graph (服务拓扑图)
+                 ├── Node Graph (调用链路图)
+                 └── Timeline (时间线视图)
 ```
 
 应用中配置的 OTEL endpoint：
@@ -938,14 +1023,33 @@ http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317
 
 3. **服务器端差异比对**: 启用以提升大规模部署的性能
 
-4. **自管理模式**: 通过 `argocd-self.yaml` 实现 ArgoCD 自身的 GitOps 管理
+4. **自管理模式**: 通过 `argocd/apps/dev/argocd-self.yaml` 实现 ArgoCD 自身的 GitOps 管理
 
 ### G. AppProject 权限说明
+
+Dev 环境的 AppProject 配置位于 `argocd/apps/dev/projects.yaml`：
 
 | Project | 源仓库 | 目标命名空间 | 用途 |
 |---------|-------|-------------|------|
 | platform | gitops-manifests, helm charts | prometheus, grafana, loki, tempo, opentelemetry | 平台基础设施 |
-| apps | gitops-manifests | dev, qa, prod | 业务应用 |
+| apps | gitops-manifests, otel helm charts | dev, otel-demo, my-app | 业务应用 |
+
+### H. 多集群部署
+
+本项目支持多集群部署，每个环境使用独立的 root-app：
+
+```bash
+# Dev 集群
+kubectl apply -f argocd/apps/dev/root-app.yaml
+
+# QA 集群（切换到 QA 集群 context 后）
+kubectl apply -f argocd/apps/qa/root-app.yaml
+
+# Prod 集群（切换到 Prod 集群 context 后）
+kubectl apply -f argocd/apps/prod/root-app.yaml
+```
+
+每个环境的配置完全隔离，互不影响。
 
 ---
 
@@ -953,6 +1057,7 @@ http://otel-collector-opentelemetry-collector.opentelemetry.svc:4317
 
 | 日期 | 版本 | 更新内容 |
 |------|------|---------|
+| 2026-01-09 | 1.3.0 | 重构为多集群架构（每环境独立 root-app）、添加 otel-demo 应用、更新链路追踪说明 |
 | 2026-01-09 | 1.2.0 | ArgoCD 升级至 v3.2.3、添加 ApplicationSet 说明、更新 ArgoCD 自管理配置、更新所有组件版本 |
 | 2026-01-08 | 1.1.0 | 更新命名空间结构（每组件独立命名空间）、更新 Helm Chart 版本、添加 Ingress 配置说明 |
 | 2026-01-07 | 1.0.0 | 初始版本 |
