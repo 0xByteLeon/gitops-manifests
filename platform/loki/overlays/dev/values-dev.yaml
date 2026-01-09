@@ -5,11 +5,11 @@ singleBinary:
   replicas: 1
   resources:
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 500m
+      memory: 512Mi
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 256Mi
   persistence:
     enabled: true
     size: 5Gi
