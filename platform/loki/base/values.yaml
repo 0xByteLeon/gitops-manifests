@@ -70,11 +70,11 @@ singleBinary:
   replicas: 1
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 1
+      memory: 1Gi
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 200m
+      memory: 512Mi
   persistence:
     enabled: true
     size: 10Gi
@@ -85,11 +85,11 @@ gateway:
   replicas: 1
   resources:
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 500m
+      memory: 512Mi
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 256Mi
 
 # Disable components not needed in single binary mode
 read:
