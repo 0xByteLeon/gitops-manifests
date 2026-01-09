@@ -39,6 +39,6 @@ config:
           - debug
       logs:
         exporters:
-          - loki
+          - otlphttp/loki
           - debug
 
