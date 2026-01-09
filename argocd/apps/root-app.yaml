@@ -103,6 +103,7 @@ spec:
   
   sourceRepos:
     - https://github.com/0xByteLeon/gitops-manifests.git
+    - https://open-telemetry.github.io/opentelemetry-helm-charts
   
   destinations:
     - namespace: dev
@@ -110,6 +111,10 @@ spec:
     - namespace: qa
       server: "*"
     - namespace: prod
+      server: "*"
+    - namespace: otel-demo
+      server: "*"
+    - namespace: my-app
       server: "*"
   
   clusterResourceWhitelist:

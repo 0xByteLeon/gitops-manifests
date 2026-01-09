@@ -33,6 +33,7 @@ spec:
       destination:
         # Dev cluster - update with actual cluster URL
         server: https://kubernetes.default.svc
+        # 命名空间由各应用的 kustomization.yaml 定义
         namespace: dev
       
       syncPolicy:
