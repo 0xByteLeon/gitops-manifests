@@ -49,11 +49,12 @@ components:
         memory: 128Mi
 
   # 负载生成器 - 自动生成流量和 Traces
+  # 启用浏览器流量模拟需要更多内存
   loadgenerator:
     enabled: true
     resources:
       limits:
-        memory: 512Mi
+        memory: 1Gi
 
   # 产品目录服务
   productCatalogService:
